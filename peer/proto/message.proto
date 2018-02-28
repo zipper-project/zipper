@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package proto;
+
+message Header {
+    uint32 magic = 1;
+    uint32 seqNum = 2;
+    uint32 protoID = 3;
+    uint32 msgID = 4;
+}
+
+message Message {
+  Header header = 1;
+  bytes payload = 2;
+}
+
+message HandShake {
+	string name = 1;
+	string version = 2;
+	bytes id = 3;
+	string address = 4;
+	uint32 type = 5;     
+	bytes signature = 6;
+	bytes cert = 7;
+}
