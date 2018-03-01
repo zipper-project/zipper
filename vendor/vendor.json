@@ -9,6 +9,18 @@
 			"revisionTime": "2018-02-13T14:31:10Z"
 		},
 		{
+			"checksumSHA1": "Hd1Y5DkzYULQzJlSgYv2w5SiEAo=",
+			"path": "github.com/ethereum/go-ethereum/common/math",
+			"revision": "9b4e182ce5c0a82799cc3c455444c18c664fa996",
+			"revisionTime": "2018-02-28T16:28:09Z"
+		},
+		{
+			"checksumSHA1": "LS/Qn4CAVXw3zDAiURIS9LIvKxg=",
+			"path": "github.com/ethereum/go-ethereum/crypto/secp256k1",
+			"revision": "9b4e182ce5c0a82799cc3c455444c18c664fa996",
+			"revisionTime": "2018-02-28T16:28:09Z"
+		},
+		{
 			"checksumSHA1": "yqF125xVSkmfLpIVGrLlfE05IUk=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "1909bc2f63dc92bb931deace8b8312c4db72d12f",
