@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package proto;
+
+
+import "block.proto";
+import "transaction.proto";
+
+message Header {
+    uint32 magic = 1;
+    uint32 seqNum = 2;
+    uint32 protoID = 3;
+    uint32 msgID = 4;
+}
+
+
+message Message {
+  Header header = 1;
+  bytes payload = 2;
+}
+
+message GetBlocksMsg {
+	uint32 version = 1; 
+	repeated string locatorHashes = 2;
+	string hashStop = 3;
+}
+
+enum InvType {
+    block = 0;
+    transaction = 1;
+}
+
+message GetInvMsg {
+	InvType   type = 1;
+	repeated string hashs = 2;
+}
+
+message OnBlockMsg {
+    BlockData block = 1; 
+}
+
+message OnTransactionMsg {
+    proto.TxData transaction = 1;
+}
+
+message GetDataMsg {
+   repeated GetInvMsg InvList = 1;
+}
