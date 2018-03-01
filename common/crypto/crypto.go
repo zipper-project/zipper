@@ -1,4 +1,4 @@
-// Copyright (C) 2017, Zipper Team Technology Co.,Ltd.  All rights reserved.
+// Copyright (C) 2017, Zipper Team.  All rights reserved.
 //
 // This file is part of zipper
 //
