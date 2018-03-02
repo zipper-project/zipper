@@ -27,6 +27,78 @@
 			"revisionTime": "2017-08-08T02:16:21Z"
 		},
 		{
+			"checksumSHA1": "As1PSFJop3xi3W8tAYSm/8YesAQ=",
+			"path": "github.com/pborman/uuid",
+			"revision": "c65b2f87fee37d1c7854c9164a450713c28d50cd",
+			"revisionTime": "2018-01-22T19:00:07Z"
+		},
+		{
+			"checksumSHA1": "/75oK5RVdiy+bYLaLKcysy/NRLc=",
+			"path": "github.com/robertkrimen/otto",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "q1HKpLIWi3tTT5W5LqMlwPcGmyQ=",
+			"path": "github.com/robertkrimen/otto/ast",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "L0KsB2EzTlPgv0iae3q3SukNW7U=",
+			"path": "github.com/robertkrimen/otto/dbg",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "euDLJKhw4doeTSxjEoezjxYXLzs=",
+			"path": "github.com/robertkrimen/otto/file",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "nnv83GyG4Sglv6TW4NtFrdZm3kE=",
+			"path": "github.com/robertkrimen/otto/parser",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "7J/7NaYRqKhBvZ+dTIutsEoEgFw=",
+			"path": "github.com/robertkrimen/otto/registry",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "/jMXYuXycBpTqWhRyJ2xsqvHvQI=",
+			"path": "github.com/robertkrimen/otto/token",
+			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
+			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"checksumSHA1": "evaKLjhScVfgZWZBc8Oo5Ti9Fnk=",
+			"path": "github.com/yuin/gopher-lua",
+			"revision": "7d7bc8747e3f614c5c587729a341fe7d8903cdb8",
+			"revisionTime": "2018-01-22T00:52:51Z"
+		},
+		{
+			"checksumSHA1": "yNGEI9BMDbGwabUnaHvV9ZZm/a0=",
+			"path": "github.com/yuin/gopher-lua/ast",
+			"revision": "7d7bc8747e3f614c5c587729a341fe7d8903cdb8",
+			"revisionTime": "2018-01-22T00:52:51Z"
+		},
+		{
+			"checksumSHA1": "tvgTwUPQPLSmdytjLH0ah9XxiA0=",
+			"path": "github.com/yuin/gopher-lua/parse",
+			"revision": "7d7bc8747e3f614c5c587729a341fe7d8903cdb8",
+			"revisionTime": "2018-01-22T00:52:51Z"
+		},
+		{
+			"checksumSHA1": "HjgsWY3i3eO1EueP3EbP+K5gOxc=",
+			"path": "github.com/yuin/gopher-lua/pm",
+			"revision": "7d7bc8747e3f614c5c587729a341fe7d8903cdb8",
+			"revisionTime": "2018-01-22T00:52:51Z"
+		},
+		{
 			"checksumSHA1": "6U7dCaxxIMjf5V02iWgyAwppczw=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "8c653846df49742c4c85ec37e5d9f8d3ba657895",
@@ -43,6 +115,18 @@
 			"path": "golang.org/x/sys/windows",
 			"revision": "f6cff0780e542efa0c8e864dc8fa522808f6a598",
 			"revisionTime": "2018-02-20T20:26:15Z"
+		},
+		{
+			"checksumSHA1": "4BwmmgQUhWtizsR2soXND0nqZ1I=",
+			"path": "gopkg.in/sourcemap.v1",
+			"revision": "6e83acea0053641eff084973fee085f0c193c61a",
+			"revisionTime": "2017-02-13T14:20:43Z"
+		},
+		{
+			"checksumSHA1": "GDXPA04g0Dfwu2w++JiOKkYuZEc=",
+			"path": "gopkg.in/sourcemap.v1/base64vlq",
+			"revision": "6e83acea0053641eff084973fee085f0c193c61a",
+			"revisionTime": "2017-02-13T14:20:43Z"
 		}
 	],
 	"rootPath": "github.com/zipper-project/zipper"
