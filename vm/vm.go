@@ -15,4 +15,53 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package vm
+
+import (
+	"github.com/zipper-project/zipper/proto"
+	ltyes "github.com/zipper-project/zipper/ledger/types"
+)
+
+//blockchain should provide the implement to VM
+type ISmartConstract interface {
+	GetGlobalState(key string) ([]byte, error)
+
+	PutGlobalState(key string, value []byte) error
+
+	DelGlobalState(key string) error
+
+	GetState(key string) ([]byte, error)
+
+	PutState(key string, value []byte) error
+
+	DelState(key string) error
+
+	ComplexQuery(key string) ([]byte, error)
+
+	GetBalance(addr string, assetID uint32) (int64, error)
+
+	GetCurrentBlockHeight() uint32
+
+	AddTransfer(fromAddr, toAddr string, assetID uint32, amount, fee int64) error
+
+	Transfer(tx *proto.Transaction) error
+
+	GetBalances(addr string) (*ltyes.Balance, error)
+
+	//GetByPrefix(prefix string) ([]*db.KeyValue, error)
+
+	//GetByRange(startKey, limitKey string) ([]*db.KeyValue, error)
+
+	CallBack(response *MockerCallBackResponse) error
+}
+
+type MockerCallBackResponse struct {
+	IsCanRedo bool
+	Err       error
+	Result    interface{}
+}
+
+type BVMEngine interface {
+
+}

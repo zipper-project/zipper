@@ -143,10 +143,13 @@ func (tx *Transaction) Recipient() account.Address {
 }
 
 // Amount returns the transfer amount of the transaction
-func (tx *Transaction) Amount() *big.Int { return big.NewInt(tx.Header.Amount) }
+func (tx *Transaction) Amount() int64 { return tx.Header.Amount }
 
 // Fee returns the nonce of the transaction
-func (tx *Transaction) Fee() *big.Int { return big.NewInt(tx.Header.Fee) }
+func (tx *Transaction) Fee() int64 { return tx.Header.Fee }
+
+// AssetID returns the asset id of the transaction
+func (tx *Transaction) AssetID() uint32 { return tx.Header.AssetID }
 
 // WithSignature returns a new transaction with the given signature.
 func (tx *Transaction) WithSignature(sig *crypto.Signature) {
