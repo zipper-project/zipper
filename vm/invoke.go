@@ -19,13 +19,13 @@
 package vm
 
 import (
-	"fmt"
-	"errors"
 	"encoding/hex"
+	"errors"
+	"fmt"
 
-	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/common/log"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
+	"github.com/zipper-project/zipper/proto"
 )
 
 var (
@@ -138,6 +138,7 @@ func (p *WorkerProc) CCallDelState(key string) error {
 	p.StateChangeQueue.offer(&stateOpfunc{stateOpTypeDelete, key, nil})
 	return nil
 }
+
 //
 //func (p *WorkerProc) CCallGetByPrefix(key string) ([]*db.KeyValue, error) {
 //	if err := CheckStateKey(key); err != nil {
@@ -238,7 +239,7 @@ func (p *WorkerProc) CCallTransfer(recipientAddr string, id, amount int64, fee i
 	contractBalances.Amounts[uint32(id)] = contractBalances.Amounts[uint32(id)] - amount
 	p.TransferQueue.balancesMap[contractAddr] = contractBalances
 
-	if _, ok := recipientBalances.Amounts[uint32(id)]; !ok  {
+	if _, ok := recipientBalances.Amounts[uint32(id)]; !ok {
 		recipientBalances.Amounts[uint32(id)] = 0
 	}
 	recipientBalances.Amounts[uint32(id)] = recipientBalances.Amounts[uint32(id)] + amount

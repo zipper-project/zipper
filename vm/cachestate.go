@@ -20,7 +20,8 @@ package vm
 
 import (
 	"container/list"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
+
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
 )
 
 const (
@@ -59,13 +60,12 @@ func (ss *stateQueue) poll() *stateOpfunc {
 }
 
 type transferOpfunc struct {
-	fee int64
+	fee    int64
 	from   string
 	to     string
 	id     uint32
 	amount int64
 }
-
 
 type transferQueue struct {
 	lst         *list.List

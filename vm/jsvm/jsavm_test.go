@@ -16,24 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 package jsvm
 
 import (
-	"os"
-	"fmt"
-	"sync"
-	"time"
 	"errors"
-	"testing"
+	"fmt"
 	"io/ioutil"
-	"github.com/zipper-project/zipper/vm"
-	"github.com/zipper-project/zipper/proto"
+	"os"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/common/crypto"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
+	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/vm"
 )
-
 
 type MockerHandler struct {
 	sync.Mutex
@@ -46,7 +45,7 @@ func NewMockerHandler() *MockerHandler {
 	}
 }
 
-func (hd *MockerHandler)GetGlobalState(key string) ([]byte, error) {
+func (hd *MockerHandler) GetGlobalState(key string) ([]byte, error) {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -56,7 +55,7 @@ func (hd *MockerHandler)GetGlobalState(key string) ([]byte, error) {
 	return []byte{}, errors.New("Not found")
 }
 
-func (hd *MockerHandler)PutGlobalState(key string, value []byte) error {
+func (hd *MockerHandler) PutGlobalState(key string, value []byte) error {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -64,7 +63,7 @@ func (hd *MockerHandler)PutGlobalState(key string, value []byte) error {
 	return nil
 }
 
-func (hd *MockerHandler)DelGlobalState(key string) error {
+func (hd *MockerHandler) DelGlobalState(key string) error {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -128,7 +127,7 @@ func (hd *MockerHandler) GetCurrentBlockHeight() uint32 {
 	return 100
 }
 
-func (hd *MockerHandler) AddTransfer(fromAddr, toAddr string, assetID uint32, amount ,fee int64) error {
+func (hd *MockerHandler) AddTransfer(fromAddr, toAddr string, assetID uint32, amount, fee int64) error {
 	hd.Lock()
 	defer hd.Unlock()
 	fmt.Printf("AddTransfer from:%s to:%s amount:%d txType:%d", fromAddr, toAddr, amount, fee)
@@ -156,6 +155,7 @@ func (hd *MockerHandler) CallBack(response *vm.MockerCallBackResponse) error {
 }
 
 var fileBuf []byte
+
 func CreateContractSpec(args []string) *proto.ContractSpec {
 	contractSpec := &proto.ContractSpec{}
 	contractSpec.Params = args
@@ -170,7 +170,7 @@ func CreateContractSpec(args []string) *proto.ContractSpec {
 		}
 	}
 
-	contractSpec.Code= fileBuf
+	contractSpec.Code = fileBuf
 
 	var a account.Address
 	pubBytes := []byte("sender" + string(fileBuf))
@@ -194,13 +194,13 @@ func TestJsWorker(t *testing.T) {
 	jsWorker := NewJsWorker(vm.DefaultConfig())
 	workerProc := &vm.WorkerProc{
 		ContractData: CreateContractData([]string{}),
-		SCHandler: NewMockerHandler(),
+		SCHandler:    NewMockerHandler(),
 	}
 
 	_, err := jsWorker.VmJob(&vm.WorkerProcWithCallback{
 		WorkProc: workerProc,
-		Idx: 1,
-		})
+		Idx:      1,
+	})
 
 	fmt.Println(err)
 	time.Sleep(time.Second)

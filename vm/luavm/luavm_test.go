@@ -19,18 +19,19 @@
 package luavm
 
 import (
-	"os"
-	"fmt"
-	"sync"
 	"errors"
-	"testing"
+	"fmt"
 	"io/ioutil"
-	"github.com/zipper-project/zipper/vm"
-	"github.com/zipper-project/zipper/proto"
+	"os"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/common/crypto"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
-	"time"
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
+	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/vm"
 )
 
 type MockHandler struct {
@@ -44,7 +45,7 @@ func NewMockHandler() *MockHandler {
 	}
 }
 
-func (hd *MockHandler)GetGlobalState(key string) ([]byte, error) {
+func (hd *MockHandler) GetGlobalState(key string) ([]byte, error) {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -54,7 +55,7 @@ func (hd *MockHandler)GetGlobalState(key string) ([]byte, error) {
 	return []byte{}, errors.New("Not found")
 }
 
-func (hd *MockHandler)PutGlobalState(key string, value []byte) error {
+func (hd *MockHandler) PutGlobalState(key string, value []byte) error {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -62,7 +63,7 @@ func (hd *MockHandler)PutGlobalState(key string, value []byte) error {
 	return nil
 }
 
-func (hd *MockHandler)DelGlobalState(key string) error {
+func (hd *MockHandler) DelGlobalState(key string) error {
 	hd.Lock()
 	defer hd.Unlock()
 
@@ -155,6 +156,7 @@ func (hd *MockHandler) CallBack(response *vm.MockerCallBackResponse) error {
 
 var fileMap = make(map[string][]byte)
 var fileLock sync.Mutex
+
 func CreateContractSpec(args []string, fileName string) *proto.ContractSpec {
 	contractSpec := &proto.ContractSpec{}
 	contractSpec.Params = args
@@ -165,14 +167,14 @@ func CreateContractSpec(args []string, fileName string) *proto.ContractSpec {
 	if _, ok := fileMap[fileName]; ok {
 		fileBuf = fileMap[fileName]
 	} else {
-			var err error
-			f, _ := os.Open(fileName)
-			fileBuf, err = ioutil.ReadAll(f)
-			if err != nil {
-				fmt.Println("read file failed ....")
-				os.Exit(-1)
-			}
-			fileMap[fileName] = fileBuf
+		var err error
+		f, _ := os.Open(fileName)
+		fileBuf, err = ioutil.ReadAll(f)
+		if err != nil {
+			fmt.Println("read file failed ....")
+			os.Exit(-1)
+		}
+		fileMap[fileName] = fileBuf
 	}
 
 	contractSpec.Code = fileBuf
@@ -195,18 +197,17 @@ func CreateContractData(args []string) *vm.ContractData {
 	return vm.NewContractData(tx)
 }
 
-
 func TestLuaWorker(t *testing.T) {
 	vm.VMConf = vm.DefaultConfig()
 	luaWorker := NewLuaWorker(vm.DefaultConfig())
 	workerProc := &vm.WorkerProc{
 		ContractData: CreateContractData([]string{}),
-		SCHandler: NewMockHandler(),
+		SCHandler:    NewMockHandler(),
 	}
 
 	luaWorker.VmJob(&vm.WorkerProcWithCallback{
 		WorkProc: workerProc,
-		Idx: 1,
+		Idx:      1,
 	})
 
 	time.Sleep(time.Second)

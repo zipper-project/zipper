@@ -22,9 +22,10 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+
 	"github.com/robertkrimen/otto"
 	"github.com/zipper-project/zipper/common/utils"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
 )
 
 const (

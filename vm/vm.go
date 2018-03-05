@@ -19,8 +19,8 @@
 package vm
 
 import (
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/proto"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
 )
 
 //blockchain should provide the implement to VM
@@ -63,5 +63,4 @@ type MockerCallBackResponse struct {
 }
 
 type BVMEngine interface {
-
 }

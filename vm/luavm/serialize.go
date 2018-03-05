@@ -24,9 +24,8 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 	"github.com/zipper-project/zipper/common/utils"
-	ltyes "github.com/zipper-project/zipper/ledger/types"
+	ltyes "github.com/zipper-project/zipper/ledger/balance"
 )
-
 
 const (
 	lstringType = iota
