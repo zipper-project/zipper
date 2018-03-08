@@ -28,7 +28,7 @@ import (
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/common/utils"
 	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/consensus/types"
+	"github.com/zipper-project/zipper/proto"
 )
 
 //MINQUORUM  Define min quorum
@@ -85,7 +85,7 @@ type Scip struct {
 	statistics    map[string]time.Duration
 	statisticsCnt int
 
-	function func(int, types.Transactions)
+	function func(int, proto.Transactions)
 
 	recvConsensusMsgChan chan *Message
 	outputTxsChan        chan *consensus.OutputTxs
@@ -208,7 +208,7 @@ func (scip *Scip) BatchTimeout() time.Duration {
 }
 
 //ProcessBatches
-func (scip *Scip) ProcessBatch(txs types.Transactions, function func(int, types.Transactions)) {
+func (scip *Scip) ProcessBatch(txs proto.Transactions, function func(int, proto.Transactions)) {
 	scip.function = function
 	if len(txs) == 0 {
 		return

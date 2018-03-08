@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/zipper-project/zipper/common/utils"
-	"github.com/zipper-project/zipper/consensus/types"
+	"github.com/zipper-project/zipper/proto"
 )
 
 //Request Define struct
@@ -33,7 +33,7 @@ type Request struct {
 	ID     int64
 	Time   uint32
 	Height uint32
-	Txs    types.Transactions
+	Txs    proto.Transactions
 }
 
 //Name key name
@@ -94,8 +94,8 @@ type Committed struct {
 	SeqNo     uint32
 	Height    uint32
 	Digest    string
-	Txs       types.Transactions
-	ErrTxs    types.Transactions
+	Txs       proto.Transactions
+	ErrTxs    proto.Transactions
 	Chain     string
 	ReplicaID string
 }

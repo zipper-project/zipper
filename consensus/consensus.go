@@ -21,7 +21,7 @@ package consensus
 import (
 	"time"
 
-	"github.com/zipper-project/zipper/consensus/types"
+	"github.com/zipper-project/zipper/proto"
 )
 
 //BroadcastConsensus Define consensus data for broadcast
@@ -36,7 +36,7 @@ type IOptions interface {
 
 // OutputTxs Consensus output object
 type OutputTxs struct {
-	Txs    types.Transactions
+	Txs    proto.Transactions
 	SeqNos []uint32
 	Time   uint32
 	Height uint32
@@ -54,7 +54,7 @@ type Consenter interface {
 	BatchSize() int
 	PendingSize() int
 	BatchTimeout() time.Duration
-	ProcessBatch(request types.Transactions, function func(int, types.Transactions))
+	ProcessBatch(request proto.Transactions, function func(int, proto.Transactions))
 
 	RecvConsensus([]byte)
 	BroadcastConsensusChannel() <-chan *BroadcastConsensus
@@ -69,6 +69,6 @@ type BlockchainInfo struct {
 
 // IStack Interface for other function for plugin consenser
 type IStack interface {
-	VerifyTxs(request types.Transactions) (types.Transactions, types.Transactions)
+	VerifyTxs(request proto.Transactions) (proto.Transactions, proto.Transactions)
 	GetBlockchainInfo() *BlockchainInfo
 }

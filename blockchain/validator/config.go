@@ -16,27 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package types
+package validator
 
-import (
-	"time"
+import "time"
 
-	"github.com/zipper-project/zipper/common/crypto"
-)
-
-// Transaction represents the basic transaction that contained in blocks
-type Transaction struct {
+type Config struct {
+	IsValid           bool
+	TxPoolCapacity    int
+	TxPoolDelay       int
+	MaxWorker         int
+	MaxQueue          int
+	TxPoolTimeOut     time.Duration
+	BlacklistDur      time.Duration
+	SecurityPluginDir string
 }
 
-// Hash returns the hash of a transaction
-func (tx *Transaction) Hash() crypto.Hash {
-	return crypto.Hash{}
+func DefaultConfig() *Config {
+	return &Config{
+		IsValid:        true,
+		TxPoolCapacity: 200000,
+		TxPoolDelay:    5000,
+		MaxWorker:      10,
+		MaxQueue:       2000,
+		TxPoolTimeOut:  30 * time.Minute,
+		BlacklistDur:   1 * time.Minute,
+	}
 }
-
-// CreateTime returns the create time of the transaction
-func (tx *Transaction) CreateTime() uint32 {
-	return uint32(time.Now().Unix())
-}
-
-// Transactions represents transaction slice type for basic sorting.
-type Transactions []*Transaction

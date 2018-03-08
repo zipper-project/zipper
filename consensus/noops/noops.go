@@ -26,7 +26,7 @@ import (
 
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/consensus/types"
+	"github.com/zipper-project/zipper/proto"
 )
 
 // NewNoops Create Noops
@@ -47,8 +47,8 @@ func NewNoops(options *Options, stack consensus.IStack) *Noops {
 }
 
 type batchRequest struct {
-	Txs      types.Transactions
-	Function func(int, types.Transactions)
+	Txs      proto.Transactions
+	Function func(int, proto.Transactions)
 }
 
 // Noops Define Noops
@@ -92,7 +92,7 @@ func (noops *Noops) Start() {
 	}
 	log.Infof("noops : %s", noops)
 	noops.exit = make(chan struct{})
-	outputTxs := make(types.Transactions, 0)
+	outputTxs := make(proto.Transactions, 0)
 	seqNos := make([]uint32, 0)
 	noops.blockTimer.Reset(noops.options.BlockTimeout)
 	for {
@@ -100,7 +100,7 @@ func (noops *Noops) Start() {
 		case <-noops.exit:
 			noops.exit = nil
 			noops.processBlock(outputTxs, seqNos, fmt.Sprintf("exit"))
-			outputTxs = make(types.Transactions, 0)
+			outputTxs = make(proto.Transactions, 0)
 			seqNos = make([]uint32, 0)
 			return
 		case batchReq := <-noops.pendingChan:
@@ -117,20 +117,20 @@ func (noops *Noops) Start() {
 				outputTxs = append(outputTxs, txs...)
 				if len(outputTxs) >= noops.options.BlockSize {
 					noops.processBlock(outputTxs, seqNos, fmt.Sprintf("size %d", noops.options.BlockSize))
-					outputTxs = make(types.Transactions, 0)
+					outputTxs = make(proto.Transactions, 0)
 					seqNos = make([]uint32, 0)
 				}
 
 			}
 		case <-noops.blockTimer.C:
 			noops.processBlock(outputTxs, seqNos, fmt.Sprintf("timeout %s", noops.options.BlockTimeout))
-			outputTxs = make(types.Transactions, 0)
+			outputTxs = make(proto.Transactions, 0)
 			seqNos = make([]uint32, 0)
 		}
 	}
 }
 
-func (noops *Noops) processBlock(txs types.Transactions, seqNos []uint32, reason string) {
+func (noops *Noops) processBlock(txs proto.Transactions, seqNos []uint32, reason string) {
 	noops.blockTimer.Stop()
 	if len(seqNos) != 0 {
 		noops.height++
@@ -167,7 +167,7 @@ func (noops *Noops) BatchTimeout() time.Duration {
 }
 
 //ProcessBatches
-func (noops *Noops) ProcessBatch(request types.Transactions, function func(int, types.Transactions)) {
+func (noops *Noops) ProcessBatch(request proto.Transactions, function func(int, proto.Transactions)) {
 	log.Infof("Noops ProcessBatch %d transactions", len(request))
 	noops.pendingChan <- &batchRequest{Txs: request, Function: function}
 	function(1, request)

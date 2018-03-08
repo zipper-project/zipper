@@ -30,10 +30,10 @@ import (
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/common/utils"
 	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/consensus/types"
+	"github.com/zipper-project/zipper/proto"
 )
 
-func merkleRootHash(txs []*types.Transaction) crypto.Hash {
+func merkleRootHash(txs []*proto.Transaction) crypto.Hash {
 	if len(txs) > 0 {
 		hashs := make([]crypto.Hash, 0)
 		for _, tx := range txs {
@@ -46,8 +46,8 @@ func merkleRootHash(txs []*types.Transaction) crypto.Hash {
 
 type scipCore struct {
 	digest       string
-	txs          types.Transactions
-	errTxs       types.Transactions
+	txs          proto.Transactions
+	errTxs       proto.Transactions
 	prePrepare   *PrePrepare
 	prepare      []*Prepare
 	passPrepare  bool
@@ -185,7 +185,7 @@ func (scip *Scip) recvRequest(request *Request) *Message {
 			return nil
 		}
 		core := scip.getscipCore(digest)
-		var txs, etxs types.Transactions
+		var txs, etxs proto.Transactions
 		if scip.testing {
 			txs = request.Txs
 			etxs = nil
@@ -295,7 +295,7 @@ func (scip *Scip) recvPrePrepare(preprepare *PrePrepare) *Message {
 			scip.sendViewChange(vc, fmt.Sprintf("wrong seqNo (%d==%d)", preprepare.SeqNo, scip.seqNo+1))
 			return nil
 		}
-		var txs, etxs types.Transactions
+		var txs, etxs proto.Transactions
 		if scip.testing {
 			txs = preprepare.Request.Txs
 			etxs = nil
@@ -606,7 +606,7 @@ func (scip *Scip) execute() {
 	}
 }
 
-func (scip *Scip) processBlock(txs types.Transactions, seqNos []uint32, reason string) {
+func (scip *Scip) processBlock(txs proto.Transactions, seqNos []uint32, reason string) {
 	scip.blockTimer.Stop()
 	if len(seqNos) != 0 {
 		log.Infof("Replica %s write block %d (%d transactions)  %v : %s", scip.options.ID, scip.execHeight, len(txs), seqNos, reason)
