@@ -21,7 +21,6 @@ package validator
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -32,6 +31,7 @@ import (
 	"github.com/zipper-project/zipper/consensus"
 	"github.com/zipper-project/zipper/coordinate"
 	"github.com/zipper-project/zipper/ledger"
+	"github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/ledger/contract"
 	"github.com/zipper-project/zipper/ledger/state"
 	"github.com/zipper-project/zipper/params"
@@ -47,7 +47,7 @@ type Validator interface {
 	RemoveTxsInVerification(txs proto.Transactions)
 	GetTransactionByHash(txHash crypto.Hash) (*proto.Transaction, bool)
 	GetAsset(id uint32) *state.Asset
-	GetBalance(addr account.Address) *state.Balance
+	GetBalance(addr account.Address) *balance.Balance
 	SecurityPluginDir() string
 }
 
@@ -60,7 +60,7 @@ type Verification struct {
 	requestBatchTimer  *time.Timer
 	blacklist          map[string]time.Time
 	rwBlacklist        sync.RWMutex
-	accounts           map[string]*state.Balance
+	accounts           map[string]*balance.Balance
 	rwAccount          sync.RWMutex
 	assets             map[uint32]*state.Asset
 	inTxs              map[crypto.Hash]*proto.Transaction
@@ -79,7 +79,7 @@ func NewVerification(config *Config, ledger *ledger.Ledger, consenter consensus.
 		requestBatchSignal: make(chan int),
 		requestBatchTimer:  time.NewTimer(consenter.BatchTimeout()),
 		blacklist:          make(map[string]time.Time),
-		accounts:           make(map[string]*state.Balance),
+		accounts:           make(map[string]*balance.Balance),
 		assets:             make(map[uint32]*state.Asset),
 		inTxs:              make(map[crypto.Hash]*proto.Transaction),
 		sctx:               contract.NewSmartConstract(ledger.DBHandler(), ledger),
@@ -166,7 +166,7 @@ func (v *Verification) ProcessTransaction(tx *proto.Transaction) error {
 	v.requestBatchSignal <- cnt
 	log.Debugf("ProcessTransaction, tx_hash: %+v time: %s", tx.Hash(), time.Now().Sub(startTime))
 	log.Debugf("[txPool] add transaction success, tx_hash: %s, sender: %s, receiver: %s, assetID %d, amount: %s,txpool_len: %d",
-		tx.Hash().String(), tx.Sender(), tx.Recipient(), tx.AssetID(), tx.Amount().String(), cnt)
+		tx.Hash().String(), tx.Sender(), tx.Recipient(), tx.AssetID(), tx.Amount(), cnt)
 	return nil
 }
 
@@ -250,13 +250,13 @@ func (v *Verification) VerifyTxs(txs proto.Transactions) (ttxs proto.Transaction
 		if !ok {
 			asset, _ = v.ledger.GetAssetFromDB(assetID)
 		}
-		if tx.GetType() != proto.TypeIssue {
+		if tx.GetType() != proto.TransactionType_Issue {
 			if asset == nil {
 				etxs = append(etxs, tx)
 				log.Errorf("[validator] tx_hash: %s, asset %d not exist", tx.Hash().String(), tx.AssetID())
 				continue
 			}
-			if tx.GetType() == proto.TypeIssueUpdate && len(tx.Payload) > 0 {
+			if tx.GetType() == proto.TransactionType_IssueUpdate && len(tx.Payload) > 0 {
 				newAsset, err := asset.Update(string(tx.Payload))
 				if err != nil {
 					etxs = append(etxs, tx)
@@ -308,7 +308,7 @@ func (v *Verification) RemoveTxsInVerification(txs proto.Transactions) {
 	}
 }
 
-func (v *Verification) fetchAccount(address account.Address) *state.Balance {
+func (v *Verification) fetchAccount(address account.Address) *balance.Balance {
 	account, ok := v.accounts[address.String()]
 	if !ok {
 		account, _ = v.ledger.GetBalanceFromDB(address)
@@ -319,10 +319,10 @@ func (v *Verification) fetchAccount(address account.Address) *state.Balance {
 
 func (v *Verification) updateAccount(tx *proto.Transaction) bool {
 	assetID := tx.AssetID()
-	plusAmount := big.NewInt(tx.Amount().Int64())
-	plusFee := big.NewInt(tx.Fee().Int64())
-	subAmount := big.NewInt(int64(0)).Neg(tx.Amount())
-	subFee := big.NewInt(int64(0)).Neg(tx.Fee())
+	plusAmount := tx.Amount()
+	plusFee := tx.Fee()
+	subAmount := -plusAmount
+	subFee := -plusFee
 
 	if fromChain := coordinate.HexToChainCoordinate(tx.FromChain()).Bytes(); bytes.Equal(fromChain, params.ChainID) {
 		senderAccont := v.fetchAccount(tx.Sender())
@@ -330,7 +330,7 @@ func (v *Verification) updateAccount(tx *proto.Transaction) bool {
 			senderAccont.Add(assetID, subAmount)
 			senderAccont.Add(assetID, subFee)
 			//	log.Debugln("[validator] updateAccount sender: ", tx.Sender(), "amount: ", senderAccont.amount)
-			if (tx.GetType() != proto.TypeIssue && tx.GetType() != proto.TypeIssueUpdate) && senderAccont.Get(assetID).Sign() == -1 {
+			if (tx.GetType() != proto.TransactionType_Issue && tx.GetType() != proto.TransactionType_IssueUpdate) && senderAccont.Get(assetID) < 0 {
 				senderAccont.Add(assetID, plusAmount)
 				senderAccont.Add(assetID, plusFee)
 				return false
@@ -344,7 +344,7 @@ func (v *Verification) updateAccount(tx *proto.Transaction) bool {
 			receiverAccount.Add(assetID, plusAmount)
 			receiverAccount.Add(assetID, plusFee)
 			//	log.Debugln("[validator] updateAccount Recipient: ", tx.Recipient(), "amount: ", receiverAccount.amount)
-			if receiverAccount.Get(assetID).Sign() == -1 {
+			if receiverAccount.Get(assetID) < 0 {
 				receiverAccount.Add(assetID, subAmount)
 				receiverAccount.Add(assetID, subFee)
 				return false
@@ -356,10 +356,10 @@ func (v *Verification) updateAccount(tx *proto.Transaction) bool {
 
 func (v *Verification) rollBackAccount(tx *proto.Transaction) {
 	assetID := tx.AssetID()
-	plusAmount := big.NewInt(tx.Amount().Int64())
-	plusFee := big.NewInt(tx.Fee().Int64())
-	subAmount := big.NewInt(int64(0)).Neg(tx.Amount())
-	subFee := big.NewInt(int64(0)).Neg(tx.Fee())
+	plusAmount := tx.Amount()
+	plusFee := tx.Fee()
+	subAmount := -plusAmount
+	subFee := -plusFee
 
 	if fromChain := coordinate.HexToChainCoordinate(tx.FromChain()).Bytes(); bytes.Equal(fromChain, params.ChainID) {
 		senderAccont := v.fetchAccount(tx.Sender())
@@ -398,7 +398,7 @@ func (v *Verification) GetTransactionByHash(txHash crypto.Hash) (*proto.Transact
 	return nil, false
 }
 
-func (v *Verification) GetBalance(addr account.Address) *state.Balance {
+func (v *Verification) GetBalance(addr account.Address) *balance.Balance {
 	v.rwAccount.Lock()
 	defer v.rwAccount.Unlock()
 	acconut := v.fetchAccount(addr)

@@ -57,36 +57,36 @@ func (v *Verification) checkTransactionLegal(tx *proto.Transaction) error {
 		return fmt.Errorf("[validator] illegal transaction %s : fromCahin %s or toChain %s == params.ChainID %s", tx.Hash(), tx.FromChain(), tx.ToChain(), params.ChainID.String())
 	}
 
-	if tx.Amount().Sign() < 0 || tx.Fee().Sign() < 0 {
+	if tx.Amount() < 0 || tx.Fee() < 0 {
 		return fmt.Errorf("[validator] illegal transaction %s : Amount must be >0 or Fee must bigger than 0", tx.Hash())
 	}
 
 	switch tx.GetType() {
-	case proto.TypeAtomic:
+	case proto.TransactionType_Atomic:
 		if strings.Compare(tx.FromChain(), tx.ToChain()) != 0 {
 			return fmt.Errorf("[validator] illegal transaction %s : fromchain %s == tochain %s", tx.Hash(), tx.FromChain(), tx.ToChain())
 		}
-	case proto.TypeAcrossChain:
+	case proto.TransactionType_AcrossChain:
 		if !(len(tx.FromChain()) == len(tx.ToChain()) && strings.Compare(tx.FromChain(), tx.ToChain()) != 0) {
 			return fmt.Errorf("[validator] illegal transaction %s : wrong chain floor, fromchain %s ==  tochain %s", tx.Hash(), tx.FromChain(), tx.ToChain())
 		}
-	case proto.TypeDistribut:
+	case proto.TransactionType_Distribut:
 		address := tx.Sender()
 		fromChain := coordinate.HexToChainCoordinate(tx.FromChain())
 		toChainParent := coordinate.HexToChainCoordinate(tx.ToChain()).ParentCoorinate()
 		if !bytes.Equal(fromChain, toChainParent) || strings.Compare(address.String(), tx.Recipient().String()) != 0 {
 			return fmt.Errorf("[validator] illegal transaction %s :wrong chain floor, fromChain %s - toChain %s = 1", tx.Hash(), tx.FromChain(), tx.ToChain())
 		}
-	case proto.TypeBackfront:
+	case proto.TransactionType_Backfront:
 		address := tx.Sender()
 		fromChainParent := coordinate.HexToChainCoordinate(tx.FromChain()).ParentCoorinate()
 		toChain := coordinate.HexToChainCoordinate(tx.ToChain())
 		if !bytes.Equal(fromChainParent, toChain) || strings.Compare(address.String(), tx.Recipient().String()) != 0 {
 			return fmt.Errorf("[validator] illegal transaction %s :wrong chain floor, fromChain %s - toChain %s = 1", tx.Hash(), tx.FromChain(), tx.ToChain())
 		}
-	case proto.TypeMerged:
+	case proto.TransactionType_Merged:
 	// nothing to do
-	case proto.TypeIssue, proto.TypeIssueUpdate:
+	case proto.TransactionType_Issue, proto.TransactionType_IssueUpdate:
 		fromChain := coordinate.HexToChainCoordinate(tx.FromChain())
 		toChain := coordinate.HexToChainCoordinate(tx.FromChain())
 
@@ -100,7 +100,7 @@ func (v *Verification) checkTransactionLegal(tx *proto.Transaction) error {
 		}
 
 		if len(tx.Payload) > 0 {
-			if tp := tx.GetType(); tp == proto.TypeIssue {
+			if tp := tx.GetType(); tp == proto.TransactionType_Issue {
 				asset := &state.Asset{
 					ID:     tx.AssetID(),
 					Issuer: tx.Sender(),
@@ -109,7 +109,7 @@ func (v *Verification) checkTransactionLegal(tx *proto.Transaction) error {
 				if _, err := asset.Update(string(tx.Payload)); err != nil {
 					return fmt.Errorf("[validator] illegal transaction %s: invalid issue coin(%s) - %s", tx.Hash(), string(tx.Payload), err)
 				}
-			} else if tp == proto.TypeIssueUpdate {
+			} else if tp == proto.TransactionType_IssueUpdate {
 				asset := &state.Asset{
 					ID:     tx.AssetID(),
 					Issuer: tx.Sender(),

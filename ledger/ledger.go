@@ -143,7 +143,7 @@ func (ledger *Ledger) AppendBlock(block *pb.Block, flag bool) error {
 	bh, _ := ledger.Height()
 	ledger.contract.StartConstract(bh)
 
-	txWriteBatchs, txs, errTxs = ledger.executeTransactions(block.GetTxDatas(), flag)
+	txWriteBatchs, txs, _ = ledger.executeTransactions(block.GetTxDatas(), flag)
 	block.Header.TxsMerkleHash = merkleRootHash(txs).String()
 
 	writeBatchs := ledger.block.AppendBlock(block)
@@ -294,7 +294,6 @@ func (ledger *Ledger) init() error {
 func (ledger *Ledger) executeTransactions(txDatas []*pb.TxData, flag bool) ([]*db.WriteBatch, pb.Transactions, pb.Transactions) {
 	var (
 		err                error
-		adminData          []byte
 		errTxs             pb.Transactions
 		syncTxs            pb.Transactions
 		syncContractGenTxs pb.Transactions
