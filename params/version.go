@@ -15,4 +15,27 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package txpool
+
+package params
+
+import "fmt"
+
+const (
+	// VersionMajor is Major version component of the current release
+	VersionMajor = 0
+	// VersionMinor is Minor version component of the current release
+	VersionMinor = 8
+	// VersionPatch is Patch version component of the current release
+	VersionPatch = 0
+	// VersionMeta is Version metadata to append to the version string
+	VersionMeta = "unstable"
+)
+
+// Version holds the textual version string.
+var Version = func() string {
+	v := fmt.Sprintf("%d.%d.%d", VersionMajor, VersionMinor, VersionPatch)
+	if VersionMeta != "" {
+		v += "-" + VersionMeta
+	}
+	return v
+}()
