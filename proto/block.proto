@@ -13,9 +13,9 @@ message BlockHeader {
 }
 
 
-message BlockData {
+message Block {
     BlockHeader header = 1;
-    repeated TxData txDatas = 2; 
+    repeated Transaction transactions = 2; 
 }
 
 

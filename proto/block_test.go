@@ -20,21 +20,18 @@ var (
 func TestBlockSerialize(t *testing.T) {
 	var (
 		testBlock = Block{
-			BlockData: BlockData{
-				Header: &BlockHeader{
-					PreviousHash: crypto.DoubleSha256([]byte("xxxx")).String(),
-					TimeStamp:    uint32(time.Now().Unix()),
-					Nonce:        uint32(100),
-				},
+			Header: &BlockHeader{
+				PreviousHash: crypto.DoubleSha256([]byte("xxxx")).String(),
+				TimeStamp:    uint32(time.Now().Unix()),
+				Nonce:        uint32(100),
 			},
 		}
 	)
-	Txs := make([]*TxData, 0)
+	Txs := make([]*Transaction, 0)
 	hashs := make([]crypto.Hash, 0)
 	reciepent := account.HexToAddress("0xbf6080eaae18a6eb4d9d3b9ef08a8bdf02e3caa8")
 	for i := 1; i < 3; i++ {
-
-		tx := &TxData{
+		tx := &Transaction{
 			Header: &TxHeader{
 				FromChain:  account.NewChainCoordinate([]byte{byte(i)}),
 				ToChain:    account.NewChainCoordinate([]byte{byte(i)}),
@@ -49,11 +46,10 @@ func TestBlockSerialize(t *testing.T) {
 			},
 		}
 		Txs = append(Txs, tx)
-		ttx := &Transaction{TxData: *tx}
-		hashs = append(hashs, ttx.Hash())
+		hashs = append(hashs, tx.Hash())
 	}
 
-	testBlock.TxDatas = Txs
+	testBlock.Transactions = Txs
 	testBlock.Header.TxsMerkleHash = crypto.ComputeMerkleHash(hashs)[0].String()
 
 	fmt.Println("Block hash", testBlock.Hash())
@@ -62,10 +58,10 @@ func TestBlockSerialize(t *testing.T) {
 		testBlock.Header.TxsMerkleHash,
 		testBlock.Header.Nonce,
 		testBlock.Header.TimeStamp,
-		testBlock.TxDatas,
+		testBlock.Transactions,
 	)
 	fmt.Println("Block Header serialize()", testBlock.Header.Serialize())
-	fmt.Println("Block AtomicTxs", testBlock.TxDatas, len(testBlock.TxDatas))
+	fmt.Println("Block AtomicTxs", testBlock.Transactions, len(testBlock.Transactions))
 	fmt.Println("Block serialize()", hex.EncodeToString(testBlock.Serialize()))
 	testHashStr = hex.EncodeToString(testBlock.Serialize())
 }

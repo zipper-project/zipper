@@ -36,11 +36,11 @@ message GetInvMsg {
 }
 
 message OnBlockMsg {
-    BlockData block = 1; 
+    Block block = 1; 
 }
 
 message OnTransactionMsg {
-    proto.TxData transaction = 1;
+    Transaction transaction = 1;
 }
 
 message GetDataMsg {

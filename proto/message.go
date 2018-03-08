@@ -3,56 +3,56 @@ package proto
 import "github.com/golang/protobuf/proto"
 
 type IIMsg interface {
-	Marshal() ([]byte, error)
-	Unmarshal(data []byte) error
+	Serialize() ([]byte, error)
+	Deserialize(data []byte) error
 }
 
 type IMsg interface {
-	Marshal() ([]byte, error)
-	Unmarshal(data []byte) error
+	Serialize() ([]byte, error)
+	Deserialize(data []byte) error
 	SetPayload(data []byte)
 }
 
-func (m *Message) Marshal() ([]byte, error) {
+func (m *Message) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *Message) Unmarshal(data []byte) error {
+func (m *Message) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *Message) SetPayload(data []byte)  {
+func (m *Message) SetPayload(data []byte) {
 	m.Payload = data
 }
 
-func (m *GetBlocksMsg) Marshal() ([]byte, error) {
+func (m *GetBlocksMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetBlocksMsg) Unmarshal(data []byte) error {
+func (m *GetBlocksMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *GetInvMsg) Marshal() ([]byte, error) {
+func (m *GetInvMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetInvMsg) Unmarshal(data []byte) error {
+func (m *GetInvMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *GetDataMsg) Marshal() ([]byte, error) {
+func (m *GetDataMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetDataMsg) Unmarshal(data []byte) error {
+func (m *GetDataMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *OnBlockMsg) Marshal() ([]byte, error) {
+func (m *OnBlockMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *OnBlockMsg) Unmarshal(data []byte) error {
+func (m *OnBlockMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }

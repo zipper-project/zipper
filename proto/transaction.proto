@@ -38,7 +38,7 @@ message TxHeader {
     uint32 createTime = 11;
 }
 
-message TxData {
+message Transaction {
     TxHeader Header = 1;
     bytes payload = 2;
     bytes meta = 3;

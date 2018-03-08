@@ -1,15 +1,12 @@
 package proto
 
 import (
+	"bytes"
 	"errors"
-	"math/big"
-	"strings"
-	"sync/atomic"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/common/crypto"
-	"github.com/zipper-project/zipper/common/utils"
 )
 
 var (
@@ -17,77 +14,67 @@ var (
 	ErrEmptySignature = errors.New("Signature Empty Error")
 )
 
-//Transaction
-type Transaction struct {
-	TxData
-	hash   atomic.Value
-	sender atomic.Value
-}
-
-//Balance
-type Balance struct {
-	ID        uint32
-	Sender    *big.Int
-	Recipient *big.Int
-	Callback  func(interface{})
+//NewTransaction initialization transaction
+func NewTransaction(from, to account.ChainCoordinate,
+	txType TransactionType,
+	nonce uint32,
+	sender, recipient account.Address,
+	assetID uint32,
+	amount, fee int64,
+	createTime uint32) *Transaction {
+	tx := &Transaction{
+		Header: &TxHeader{
+			FromChain:  from,
+			ToChain:    to,
+			Type:       txType,
+			Nonce:      nonce,
+			Sender:     sender.String(),
+			Recipient:  recipient.String(),
+			AssetID:    assetID,
+			Amount:     amount,
+			Fee:        fee,
+			CreateTime: createTime,
+		},
+	}
+	return tx
 }
 
 // Hash returns the hash of a transaction
 func (tx *Transaction) Hash() crypto.Hash {
-	if hash := tx.hash.Load(); hash != nil {
-		//log.Debugf("Tx Hash %s", hash.(crypto.Hash))
-		return hash.(crypto.Hash)
-	}
-	v := crypto.DoubleSha256(tx.Serialize())
-	tx.hash.Store(v)
-	//log.Debugf("Tx Hash %s", v)
-	return v
+	return crypto.DoubleSha256(tx.Serialize())
 }
 
 // SignHash returns the hash of a raw transaction before sign
 func (tx *Transaction) SignHash() crypto.Hash {
 	rawTx := &Transaction{
-		TxData: TxData{
-			Header: &TxHeader{
-				FromChain:  tx.Header.FromChain,
-				ToChain:    tx.Header.ToChain,
-				Type:       tx.Header.Type,
-				Nonce:      tx.Header.Nonce,
-				Sender:     tx.Header.Sender,
-				Recipient:  tx.Header.Recipient,
-				AssetID:    tx.Header.AssetID,
-				Amount:     tx.Header.Amount,
-				Fee:        tx.Header.Fee,
-				CreateTime: tx.Header.CreateTime,
-			},
-			Payload:      tx.Payload,
-			Meta:         tx.Meta,
-			ContractSpec: tx.ContractSpec,
+		Header: &TxHeader{
+			FromChain:  tx.Header.FromChain,
+			ToChain:    tx.Header.ToChain,
+			Type:       tx.Header.Type,
+			Nonce:      tx.Header.Nonce,
+			Sender:     tx.Header.Sender,
+			Recipient:  tx.Header.Recipient,
+			AssetID:    tx.Header.AssetID,
+			Amount:     tx.Header.Amount,
+			Fee:        tx.Header.Fee,
+			CreateTime: tx.Header.CreateTime,
 		},
+		Payload:      tx.Payload,
+		Meta:         tx.Meta,
+		ContractSpec: tx.ContractSpec,
 	}
 	return rawTx.Hash()
 }
 
-// Marshal marshal txData proto message
-func (tx *TxData) Marshal() []byte {
+// Serialize marshal txData proto message
+func (tx *Transaction) Serialize() []byte {
 	bytes, _ := proto.Marshal(tx)
 	return bytes
 }
 
-// Serialize returns the serialized bytes of a transaction
-func (tx *Transaction) Serialize() []byte {
-	return tx.Marshal()
-}
-
 // Deserialize deserializes bytes to a transaction
 func (tx *Transaction) Deserialize(data []byte) error {
-	txData := &TxData{}
-	err := proto.Unmarshal(data, txData)
-	if err != nil {
-		return err
-	}
-	tx.TxData = *txData
-	return nil
+	return proto.Unmarshal(data, tx)
 }
 
 // Verfiy Also can use this method verify signature
@@ -102,9 +89,6 @@ func (tx *Transaction) Verfiy() (account.Address, error) {
 		fallthrough
 	case TransactionType_Issue:
 		if tx.Header.Signature != nil {
-			if sender := tx.sender.Load(); sender != nil {
-				return sender.(account.Address), nil
-			}
 			sig := &crypto.Signature{}
 			sig.SetBytes(tx.Header.Signature, false)
 			p, err := sig.RecoverPublicKey(tx.SignHash().Bytes())
@@ -112,13 +96,12 @@ func (tx *Transaction) Verfiy() (account.Address, error) {
 				return a, err
 			}
 			a = account.PublicKeyToAddress(*p)
-			tx.sender.Store(a)
 		} else {
 			err = ErrEmptySignature
 		}
 
 	case TransactionType_Merged:
-		a = account.ChainCoordinateToAddress(account.HexToChainCoordinate(tx.FromChain()))
+		a = account.ChainCoordinateToAddress(tx.FromChain())
 	}
 	return a, err
 }
@@ -129,54 +112,22 @@ func (tx *Transaction) Sender() account.Address {
 }
 
 // FromChain returns the chain coordinate of the sender
-func (tx *Transaction) FromChain() string { return utils.BytesToHex(tx.Header.FromChain) }
+func (tx *Transaction) FromChain() account.ChainCoordinate {
+	return account.NewChainCoordinate(tx.Header.FromChain)
+}
 
 // ToChain returns the chain coordinate of the recipient
-func (tx *Transaction) ToChain() string { return utils.BytesToHex(tx.Header.ToChain) }
+func (tx *Transaction) ToChain() account.ChainCoordinate {
+	return account.NewChainCoordinate(tx.Header.ToChain)
+}
 
 // IsLocalChain returns whether or not local chain
-func (tx *Transaction) IsLocalChain() bool { return strings.Compare(tx.FromChain(), tx.ToChain()) == 0 }
+func (tx *Transaction) IsLocalChain() bool { return bytes.Compare(tx.FromChain(), tx.ToChain()) == 0 }
 
 // Recipient returns the address of the recipient
 func (tx *Transaction) Recipient() account.Address {
 	return account.HexToAddress(tx.Header.Recipient)
 }
-
-// Amount returns the transfer amount of the transaction
-func (tx *Transaction) Amount() int64 { return tx.Header.Amount }
-
-// Fee returns the nonce of the transaction
-func (tx *Transaction) Fee() int64 { return tx.Header.Fee }
-
-// AssetID returns the asset id of the transaction
-func (tx *Transaction) AssetID() uint32 { return tx.Header.AssetID }
-
-// WithSignature returns a new transaction with the given signature.
-func (tx *Transaction) WithSignature(sig *crypto.Signature) {
-	//TODO: sender cache
-	tx.Header.Signature = sig.Bytes()
-}
-
-//WithPayload returns a new transaction with the given data
-func (tx *Transaction) WithPayload(data []byte) {
-	tx.Payload = data
-}
-
-// CreateTime returns the create time of the transaction
-func (tx *Transaction) CreateTime() uint32 {
-	return tx.Header.CreateTime
-}
-
-// Compare implements interface consensus need
-func (tx *Transaction) Compare(v interface{}) int {
-	if tx.CreateTime() >= v.(*Transaction).CreateTime() {
-		return 1
-	}
-	return 0
-}
-
-// GetType returns transaction type
-func (tx *Transaction) GetType() TransactionType { return tx.Header.Type }
 
 // Transactions represents transaction slice type for basic sorting.
 type Transactions []*Transaction

@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bytes"
 	"fmt"
 	"math/big"
 	"testing"
@@ -20,21 +19,18 @@ func getTestTransaction() *Transaction {
 	fromChain := account.NewChainCoordinate([]byte{0, 1, 3})
 	toChain := account.NewChainCoordinate([]byte{0, 1, 1})
 	nonce := uint32(10000)
-
 	tx := &Transaction{
-		TxData: TxData{
-			Header: &TxHeader{
-				FromChain:  fromChain,
-				ToChain:    toChain,
-				Type:       TransactionType_Atomic,
-				Nonce:      nonce,
-				Sender:     sender.String(),
-				Recipient:  address.String(),
-				AssetID:    1,
-				Amount:     big.NewInt(1100).Int64(),
-				Fee:        big.NewInt(110).Int64(),
-				CreateTime: utils.CurrentTimestamp(),
-			},
+		Header: &TxHeader{
+			FromChain:  fromChain,
+			ToChain:    toChain,
+			Type:       TransactionType_Atomic,
+			Nonce:      nonce,
+			Sender:     sender.String(),
+			Recipient:  address.String(),
+			AssetID:    1,
+			Amount:     big.NewInt(1100).Int64(),
+			Fee:        big.NewInt(110).Int64(),
+			CreateTime: utils.CurrentTimestamp(),
 		},
 	}
 	tx.Payload = []byte("123456")
@@ -45,9 +41,7 @@ func TestTxDeserialize(t *testing.T) {
 	txBytes := utils.HexToBytes(testTxHex)
 	tx := new(Transaction)
 	tx.Deserialize(txBytes)
-	if !bytes.Equal(tx.Serialize(), txBytes) {
-		t.Errorf("Tx Deserialize error! %v != %v", tx.Serialize(), txBytes)
-	}
+	utils.AssertEquals(t, tx.Serialize(), txBytes)
 }
 
 func TestTxSender(t *testing.T) {
@@ -57,28 +51,25 @@ func TestTxSender(t *testing.T) {
 	)
 
 	tx := &Transaction{
-		TxData: TxData{
-			Header: &TxHeader{
-				FromChain:  nil,
-				ToChain:    nil,
-				Type:       TransactionType_Atomic,
-				Nonce:      1,
-				Sender:     addr.String(),
-				Recipient:  addr.String(),
-				AssetID:    1,
-				Amount:     big.NewInt(1100).Int64(),
-				Fee:        big.NewInt(110).Int64(),
-				CreateTime: utils.CurrentTimestamp(),
-			},
+		Header: &TxHeader{
+			FromChain:  nil,
+			ToChain:    nil,
+			Type:       TransactionType_Atomic,
+			Nonce:      1,
+			Sender:     addr.String(),
+			Recipient:  addr.String(),
+			AssetID:    1,
+			Amount:     big.NewInt(1100).Int64(),
+			Fee:        big.NewInt(110).Int64(),
+			CreateTime: utils.CurrentTimestamp(),
 		},
 	}
 
 	sig, _ := priv.Sign(tx.SignHash().Bytes())
-	tx.WithSignature(sig)
+	tx.GetHeader().Signature = sig.Bytes()
 
 	tx2 := new(Transaction)
 	tx2.Deserialize(tx.Serialize())
-	if !bytes.Equal(tx.Serialize(), tx2.Serialize()) {
-		t.Errorf("Deserialize error with Signature, %0x != %0x", tx.Serialize(), tx2.Serialize())
-	}
+	utils.AssertEquals(t, tx.Serialize(), tx2.Serialize())
+
 }
