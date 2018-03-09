@@ -12,8 +12,6 @@ It is generated from these files:
 It has these top-level messages:
 	BlockHeader
 	Block
-	Header
-	Message
 	GetBlocksMsg
 	GetInvMsg
 	OnBlockMsg

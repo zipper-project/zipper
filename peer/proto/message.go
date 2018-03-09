@@ -10,18 +10,18 @@ func NewMessage(header *Header, payload []byte) *Message {
 	}
 }
 
-func (msg *Message) Marshal() ([]byte, error) {
+func (msg *Message) MarshalMsg() ([]byte, error) {
 	return proto.Marshal(msg)
 }
 
-func (msg *Message) Unmarshal(data []byte) error {
+func (msg *Message) UnmarshalMsg(data []byte) error {
 	return proto.Unmarshal(data, msg)
 }
 
-func (handshake *HandShake) Marshal() ([]byte, error) {
+func (handshake *HandShake) MarshalMsg() ([]byte, error) {
 	return proto.Marshal(handshake)
 }
 
-func (handshake *HandShake) Unmarshal(data []byte) error {
+func (handshake *HandShake) UnmarshalMsg(data []byte) error {
 	return proto.Unmarshal(data, handshake)
 }

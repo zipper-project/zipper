@@ -2,21 +2,15 @@ syntax = "proto3";
 
 package proto;
 
-
 import "block.proto";
 import "transaction.proto";
 
-message Header {
-    uint32 magic = 1;
-    uint32 seqNum = 2;
-    uint32 protoID = 3;
-    uint32 msgID = 4;
-}
-
-
-message Message {
-  Header header = 1;
-  bytes payload = 2;
+enum MsgType {
+    BC_GetBlocksMsg = 0;
+    BC_GetInvMsg = 1;
+    BC_GetDataMsg = 2;
+    BC_OnBlockMsg = 3;
+    BC_OnTransactionMsg = 4;
 }
 
 message GetBlocksMsg {
