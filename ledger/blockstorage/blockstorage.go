@@ -56,16 +56,13 @@ func (blockchain *Blockchain) GetBlockByHash(blockHash []byte) (*pb.BlockHeader,
 	if err != nil {
 		return nil, err
 	}
-
 	if len(blockHeaderBytes) == 0 {
 		return nil, errors.New("not found block. ")
 	}
-
 	blockHeader := new(pb.BlockHeader)
 	if err := blockHeader.Deserialize(blockHeaderBytes); err != nil {
 		return nil, err
 	}
-
 	return blockHeader, nil
 
 }
@@ -79,7 +76,6 @@ func (blockchain *Blockchain) GetTransactionHashList(blockHeight uint32) ([]byte
 	if len(txHashsBytes) == 0 && blockHeight != 0 {
 		return nil, errors.New("not found transactions")
 	}
-
 	return txHashsBytes, nil
 }
 
@@ -173,8 +169,7 @@ func (blockchain *Blockchain) AppendBlock(block *pb.Block) []*db.WriteBatch {
 	writeBatchs = append(writeBatchs, db.NewWriteBatch(blockchain.indexColumnFamily, db.OperationPut, []byte(heightKey), blockHeightBytes, blockchain.indexColumnFamily))      // update block height
 
 	//storage  tx hash
-	for _, txData := range block.GetTxDatas() {
-		tx := &pb.Transaction{TxData: *txData}
+	for _, tx := range block.Transactions {
 		txHashs = append(txHashs, tx.Hash())
 		writeBatchs = append(writeBatchs, db.NewWriteBatch(blockchain.transactionColumnFamily, db.OperationPut, tx.Hash().Bytes(), tx.Serialize(), blockchain.transactionColumnFamily)) // tx hash => tx detail
 	}
@@ -213,11 +208,10 @@ func (blockchain *Blockchain) getTransactionsByHashList(txHashs []crypto.Hash, t
 		if err != nil {
 			return nil, err
 		}
-
 		if uint32(100) == transactionType {
 			txs = append(txs, tx)
 		} else {
-			if tx.GetType() == pb.TransactionType(transactionType) {
+			if tx.GetHeader().GetType() == pb.TransactionType(transactionType) {
 				txs = append(txs, tx)
 			}
 		}

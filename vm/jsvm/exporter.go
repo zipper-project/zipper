@@ -16,15 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 package jsvm
 
 import (
-	"time"
 	"bytes"
+	"time"
+
 	"github.com/robertkrimen/otto"
-	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/vm"
 )
 
 func exporter(ottoVM *otto.Otto, workerProc *vm.WorkerProc) (*otto.Object, error) {
@@ -213,6 +213,7 @@ func delStateFunc(workerProc *vm.WorkerProc) interface{} {
 		return val
 	}
 }
+
 //
 //func getByPrefixFunc(workerProc *vm.WorkerProc) interface{} {
 //	return func(fc otto.FunctionCall) otto.Value {
@@ -366,21 +367,21 @@ func txInfoFunc(workerProc *vm.WorkerProc) interface{} {
 		sender = workerProc.ContractData.Transaction.Sender().String()
 		recipient = workerProc.ContractData.Transaction.Recipient().String()
 
-		amount = workerProc.ContractData.Transaction.Amount()
+		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
 		amountValue, err := fc.Otto.ToValue(amount)
 		if err != nil {
 			log.Error("accountFunc -> call amount ToLValue error", err)
 			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
 		}
 
-		fee = workerProc.ContractData.Transaction.Fee()
+		fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
 		feeValue, err := fc.Otto.ToValue(fee)
 		if err != nil {
 			log.Error("accountFunc -> call amount ToLValue error", err)
 			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
 		}
 
-		assetID := workerProc.ContractData.Transaction.Fee()
+		assetID := workerProc.ContractData.Transaction.GetHeader().GetFee()
 		assetIDValue, err := fc.Otto.ToValue(assetID)
 		if err != nil {
 			log.Error("accountFunc -> call amount ToLValue error", err)
@@ -403,7 +404,6 @@ func txInfoFunc(workerProc *vm.WorkerProc) interface{} {
 		return val
 	}
 }
-
 
 func accountFunc(workerProc *vm.WorkerProc) interface{} {
 	return func(fc otto.FunctionCall) otto.Value {
@@ -431,7 +431,7 @@ func accountFunc(workerProc *vm.WorkerProc) interface{} {
 		sender = workerProc.ContractData.Transaction.Sender().String()
 		recipient = workerProc.ContractData.Transaction.Recipient().String()
 
-		amount = workerProc.ContractData.Transaction.Amount()
+		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
 		amountValue, err := fc.Otto.ToValue(amount)
 		if err != nil {
 			log.Error("accountFunc -> call amount ToLValue error", err)

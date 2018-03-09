@@ -15,39 +15,36 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package contract
+package state
 
-import (
-	"encoding/json"
-	"fmt"
-	"testing"
-)
-
-var (
-	encBytes []byte
-	err      error
-)
-
-func IsJson(src []byte) bool {
-	var value interface{}
-	return json.Unmarshal(src, &value) == nil
+// Version encapsulates the version of a Key
+type Version struct {
+	BlockNum uint64
+	TxNum    uint64
 }
 
-func TestConcrateStateJson(t *testing.T) {
-	encData, err := ConcrateStateJson(DefaultAdminAddr)
-	if err != nil {
-		fmt.Println("Enc to json err: ", err)
-	}
-	encBytes = encData.Bytes()
+// KVRead captures a read operation performed during transaction simulation
+type KVRead struct {
+	Value   []byte
+	Version *Version
 }
 
-func TestDoContractStateData(t *testing.T) {
-	fmt.Println("enc: ", encBytes)
-	decBytes, err := DoContractStateData(encBytes)
-	if err != nil || decBytes == nil && err == nil {
-		fmt.Println("Dec to origin data err: ", decBytes)
-	}
+// KVWrite captures a write (update/delete) operation performed during transaction simulation
+type KVWrite struct {
+	Value    []byte
+	IsDelete bool
+}
 
-	ok := IsJson(decBytes)
-	fmt.Println("res: ", ok)
+// KVRWSet encapsulates the read-write operation performed during transaction simulation
+type KVRWSet struct {
+	Reads  map[string]*KVRead
+	Writes map[string]*KVWrite
+}
+
+//NewKVRWSet initialization
+func NewKVRWSet() *KVRWSet {
+	return &KVRWSet{
+		Reads:  make(map[string]*KVRead),
+		Writes: make(map[string]*KVWrite),
+	}
 }

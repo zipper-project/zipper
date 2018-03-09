@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/yuin/gopher-lua"
-	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/vm"
 	luajson "github.com/zipper-project/zipper/vm/luavm/json"
 )
 
@@ -196,6 +196,7 @@ func delStateFunc(workerProc *vm.WorkerProc) lua.LGFunction {
 		return 1
 	}
 }
+
 //
 //func getByPrefixFunc(workerProc *vm.WorkerProc) lua.LGFunction {
 //	return func(l *lua.LState) int {
@@ -325,10 +326,10 @@ func txInfo(workerProc *vm.WorkerProc) lua.LGFunction {
 		var amount, fee int64
 
 		sender = workerProc.ContractData.Transaction.Sender().String()
-		amount = workerProc.ContractData.Transaction.Amount()
-		fee = workerProc.ContractData.Transaction.Fee()
+		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
+		fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
 		recipient = workerProc.ContractData.Transaction.Recipient().String()
-		assetID := workerProc.ContractData.Transaction.AssetID()
+		assetID := workerProc.ContractData.Transaction.GetHeader().GetAssetID()
 		hash := workerProc.ContractData.Transaction.Hash().String()
 		tb := l.NewTable()
 		log.Debugf("worker_lua tx_hash: %+v, tx_sender: %+v, wp: %p, cpar: %#v, tx: %#v", workerProc.ContractData.Transaction.Hash(), sender, workerProc, workerProc.ContractData.ContractParams, workerProc.ContractData.Transaction)
@@ -359,7 +360,7 @@ func accountFunc(workerProc *vm.WorkerProc) lua.LGFunction {
 			return 1
 		}
 		sender = workerProc.ContractData.Transaction.Sender().String()
-		amount = workerProc.ContractData.Transaction.Amount()
+		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
 		recipient = workerProc.ContractData.Transaction.Recipient().String()
 		tb := l.NewTable()
 		tb.RawSetString("Sender", lua.LString(sender))

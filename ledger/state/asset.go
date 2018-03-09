@@ -23,7 +23,6 @@ import (
 	"fmt"
 
 	"github.com/zipper-project/zipper/account"
-	"github.com/zipper-project/zipper/common/log"
 )
 
 //Asset Attributes
@@ -38,14 +37,15 @@ type Asset struct {
 	Owner  account.Address `json:"owner"`  // owner address
 }
 
-//Update
+//Update update asset
 func (asset *Asset) Update(jsonStr string) (*Asset, error) {
-	if len(jsonStr) == 0 {
+	if len(jsonStr) == 0 || !json.Valid([]byte(jsonStr)) {
 		return asset, nil
 	}
+
 	tAsset := &Asset{}
 	if err := json.Unmarshal([]byte(jsonStr), tAsset); err != nil {
-		return nil, fmt.Errorf("invalid json string for asset - %s", err)
+		return nil, fmt.Errorf("asset update failed: invalid json string for asset - %s", err)
 	}
 
 	var newVal map[string]interface{}
@@ -68,11 +68,7 @@ func (asset *Asset) Update(jsonStr string) (*Asset, error) {
 	if asset.ID != newAsset.ID ||
 		!bytes.Equal(asset.Issuer.Bytes(), newAsset.Issuer.Bytes()) ||
 		!bytes.Equal(asset.Owner.Bytes(), newAsset.Owner.Bytes()) {
-
-		log.Errorf("asset update failed, attribute mismatch, from %#v to %#v",
-			asset, newAsset)
-		return nil, fmt.Errorf("id, issuer, owner are readonly attribute, can't modified")
+		return nil, fmt.Errorf("asset update failed: id, issuer, owner are readonly attribute, can't modified -- %#v to %#v", asset, newAsset)
 	}
-
 	return newAsset, nil
 }

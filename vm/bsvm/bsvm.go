@@ -19,25 +19,27 @@
 package bsvm
 
 import (
-	"fmt"
-	"time"
-	"errors"
-	"strings"
 	"encoding/json"
-	"github.com/zipper-project/zipper/proto"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/config"
+	"github.com/zipper-project/zipper/ledger/state"
+	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/vm/jsvm"
 	"github.com/zipper-project/zipper/vm/luavm"
-	"github.com/zipper-project/zipper/config"
 )
 
 type WorkerInfo struct {
-	allTxsCnt int
-	redoTxsCnt int
-	workerTxCnt int
+	allTxsCnt    int
+	redoTxsCnt   int
+	workerTxCnt  int
 	allExecTime  time.Duration
-	allWaitTime time.Duration
+	allWaitTime  time.Duration
 	allMergeTime time.Duration
 }
 
@@ -46,17 +48,16 @@ type BsWorker struct {
 	workerID  int
 
 	workerInfo *WorkerInfo
-	jsWorker *jsvm.JsWorker
-	luaWorker *luavm.LuaWorker
+	jsWorker   *jsvm.JsWorker
+	luaWorker  *luavm.LuaWorker
 }
-
 
 func NewBsWorker(conf *vm.Config, idx int) *BsWorker {
 	bsWorker := &BsWorker{
-		workerID: idx,
+		workerID:   idx,
 		workerInfo: &WorkerInfo{},
-		jsWorker: jsvm.NewJsWorker(conf),
-		luaWorker:luavm.NewLuaWorker(conf),
+		jsWorker:   jsvm.NewJsWorker(conf),
+		luaWorker:  luavm.NewLuaWorker(conf),
 	}
 
 	return bsWorker
@@ -66,11 +67,11 @@ func (worker *BsWorker) FetchContractType(workerProcWithCallback *vm.WorkerProcW
 	var err error
 	txType := "unknown"
 
-	if workerProcWithCallback.WorkProc.ContractData.Transaction.GetType() == proto.TransactionType_ContractInvoke {
+	if workerProcWithCallback.WorkProc.ContractData.Transaction.GetHeader().GetType() == proto.TransactionType_ContractInvoke {
 		txType, err = worker.GetInvokeType(workerProcWithCallback)
 		if err != nil {
 			log.Errorf("ThreadId: %+v, can't execute contract, tx_hash: %s, tx_idx: %+v, err_msg: %+v, can Redo: %+v", worker.workerID,
-			workerProcWithCallback.WorkProc.ContractData.Transaction.Hash().String(), workerProcWithCallback.Idx, err.Error(), worker.isCanRedo)
+				workerProcWithCallback.WorkProc.ContractData.Transaction.Hash().String(), workerProcWithCallback.Idx, err.Error(), worker.isCanRedo)
 		}
 	} else {
 		txType = worker.GetInitType(workerProcWithCallback)
@@ -88,14 +89,14 @@ func (worker *BsWorker) ExecJob(workerProcWithCallback *vm.WorkerProcWithCallbac
 		err = worker.ExecCommonTransaction(workerProcWithCallback)
 	} else {
 		txType := worker.FetchContractType(workerProcWithCallback)
-		if strings.Contains(txType, "lua"){
+		if strings.Contains(txType, "lua") {
 			res, err = worker.luaWorker.VmJob(workerProcWithCallback)
 		} else if strings.Contains(txType, "js") {
 			res, err = worker.jsWorker.VmJob(workerProcWithCallback)
 		} else {
 			log.Errorf("can't find tx type: %+v, %+v",
 				workerProcWithCallback.WorkProc.ContractData.Transaction.Hash().String(),
-				workerProcWithCallback.WorkProc.ContractData.Transaction.GetType())
+				workerProcWithCallback.WorkProc.ContractData.Transaction.GetHeader().GetType())
 			err = errors.New("find contract type fail ...")
 		}
 	}
@@ -104,15 +105,15 @@ func (worker *BsWorker) ExecJob(workerProcWithCallback *vm.WorkerProcWithCallbac
 
 	if workerProcWithCallback.Idx != 0 {
 		if !worker.isCanRedo {
-			vm.Txsync.Wait(workerProcWithCallback.Idx%vm.VMConf.BsWorkerCnt)
+			vm.Txsync.Wait(workerProcWithCallback.Idx % vm.VMConf.BsWorkerCnt)
 		}
 	}
 
 	mergeTime := time.Now()
 	res = res
-	cerr := workerProcWithCallback.WorkProc.SCHandler.CallBack(&vm.MockerCallBackResponse{
+	cerr := workerProcWithCallback.WorkProc.SCHandler.CallBack(&state.CallBackResponse{
 		IsCanRedo: !worker.isCanRedo,
-		Err: err,
+		Err:       err,
 		//Result: res.(string),
 	})
 
@@ -122,17 +123,17 @@ func (worker *BsWorker) ExecJob(workerProcWithCallback *vm.WorkerProcWithCallbac
 	rwaitTime := mergeTime.Sub(waitTime)
 	rmergeTime := nowTime.Sub(mergeTime)
 
-	worker.workerInfo.workerTxCnt ++
+	worker.workerInfo.workerTxCnt++
 	worker.workerInfo.allExecTime += rexecTime
 	worker.workerInfo.allWaitTime += rwaitTime
 	worker.workerInfo.allMergeTime += rmergeTime
 
-	if worker.workerInfo.workerTxCnt % 1000 == 0 {
+	if worker.workerInfo.workerTxCnt%1000 == 0 {
 		averExec := worker.workerInfo.allExecTime / time.Duration(worker.workerInfo.workerTxCnt)
 		waitExec := worker.workerInfo.allWaitTime / time.Duration(worker.workerInfo.workerTxCnt)
 		mergeExec := worker.workerInfo.allMergeTime / time.Duration(worker.workerInfo.workerTxCnt)
 
-		log.Infof("worker id: %d, execTime: %s, waitTime: %s, mergeTime: %s",  worker.workerID, averExec, waitExec, mergeExec)
+		log.Infof("worker id: %d, execTime: %s, waitTime: %s, mergeTime: %s", worker.workerID, averExec, waitExec, mergeExec)
 	}
 
 	return cerr
@@ -145,7 +146,6 @@ func (worker *BsWorker) VmJob(data interface{}) (interface{}, error) {
 	worker.isCanRedo = false
 	err := worker.ExecJob(workerProcWithCallback)
 
-
 	if err != nil && !worker.isCanRedo {
 		log.Errorf("worker thread id: %+v, to tx redo, tx_hash: %+v, tx_idx: %+v, cause: %+v",
 			worker.workerID, workerProcWithCallback.WorkProc.ContractData.Transaction.Hash().String(), workerProcWithCallback.Idx, err)
@@ -157,7 +157,7 @@ func (worker *BsWorker) VmJob(data interface{}) (interface{}, error) {
 		}
 	}
 
-	vm.Txsync.Notify((workerProcWithCallback.Idx+1)%vm.VMConf.BsWorkerCnt)
+	vm.Txsync.Notify((workerProcWithCallback.Idx + 1) % vm.VMConf.BsWorkerCnt)
 	return nil, nil
 }
 
@@ -202,7 +202,7 @@ func (worker *BsWorker) GetInvokeType(wpwc *vm.WorkerProcWithCallback) (string, 
 }
 
 func (worker *BsWorker) GetInitType(wpwc *vm.WorkerProcWithCallback) string {
-	txType := wpwc.WorkProc.ContractData.Transaction.GetType()
+	txType := wpwc.WorkProc.ContractData.Transaction.GetHeader().GetType()
 	if txType == proto.TransactionType_LuaContractInit {
 		return "lua"
 	} else {
@@ -211,7 +211,7 @@ func (worker *BsWorker) GetInitType(wpwc *vm.WorkerProcWithCallback) string {
 }
 
 func (worker *BsWorker) isCommonTransaction(wpwc *vm.WorkerProcWithCallback) bool {
-	txType := wpwc.WorkProc.ContractData.Transaction.GetType()
+	txType := wpwc.WorkProc.ContractData.Transaction.GetHeader().GetType()
 	if txType == proto.TransactionType_LuaContractInit || txType == proto.TransactionType_ContractInvoke ||
 		txType == proto.TransactionType_JSContractInit || txType == proto.TransactionType_ContractQuery {
 		return false
@@ -219,7 +219,6 @@ func (worker *BsWorker) isCommonTransaction(wpwc *vm.WorkerProcWithCallback) boo
 
 	return true
 }
-
 
 func (worker *BsWorker) ExecCommonTransaction(wpwc *vm.WorkerProcWithCallback) error {
 	return wpwc.WorkProc.SCHandler.Transfer(wpwc.WorkProc.ContractData.Transaction)

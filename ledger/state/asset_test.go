@@ -18,46 +18,27 @@
 package state
 
 import (
-	"os"
 	"testing"
 
 	"github.com/zipper-project/zipper/account"
-	"github.com/zipper-project/zipper/common/db"
 	"github.com/zipper-project/zipper/common/utils"
 )
 
-var (
-	testConfig = &db.Config{
-		DbPath:            "/tmp/rocksdb-test/",
-		Columnfamilies:    []string{"balance"},
-		KeepLogFileNumber: 10,
-		MaxLogFileSize:    10485760,
-		LogLevel:          "warn",
-	}
-)
-
-func TestInitAndUpdateBalance(t *testing.T) {
-
-	testDb := db.NewDB(testConfig)
-	s := NewState(testDb)
-	a := account.HexToAddress("0xa122277be213f56221b6140998c03d860a60e1f8")
-
-	id := uint32(0)
-	amount := int64(1024)
-	if err := s.UpdateBalance(a, id, 1024); err != nil {
-		t.Error("update balance err:", err)
+func TestUpdate(t *testing.T) {
+	asset := &Asset{
+		ID:         123,
+		Name:       "house",
+		Descr:      "The house is for sale",
+		Precision:  1,
+		Expiration: 1520503284,
+		Issuer:     account.HexToAddress("0xa032277be213f56221b6140998c03d860a60e1f8"),
+		Owner:      account.HexToAddress("0xa132277be213f56221b6140998c03d860a60e1f8"),
 	}
 
-	writeBatchs := s.WriteBatchs()
-	s.dbHandler.AtomicWrite(writeBatchs)
-
-	balance, err := s.GetBalance(a)
+	result, err := asset.Update(`{"id":123,"name":"house","descr":"The house is for sale","precision":1,"expiration":1520503284,"issuer":"a032277be213f56221b6140998c03d860a60e1f8","owner":"a132277be213f56221b6140998c03d860a60e1f8"}`)
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log("get balance after update", amount, balance.Get(0))
 
-	utils.AssertEquals(t, balance.Get(0), amount)
-
-	os.RemoveAll("/tmp/rocksdb-test")
+	utils.AssertEquals(t, result, asset)
 }

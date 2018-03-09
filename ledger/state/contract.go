@@ -15,11 +15,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package contract
+package state
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
+
 	"github.com/zipper-project/zipper/account"
-	"github.com/zipper-project/zipper/vm"
+	"github.com/zipper-project/zipper/common/utils"
 )
 
 var (
@@ -30,29 +34,29 @@ var (
 	}
 
 	// DefaultGlobalContract is the default value of global contract.
-	DefaultGlobalContract = vm.ContractCode{
-		Type: "luavm",
-		Code: []byte(
-			`--[[
+	DefaultGlobalContractType = "luavm"
+
+	DefaultGlobalContractCode = []byte(
+		`--[[
 			global 合约。
 			--]]
-			
+
 			local L0 = require("L0")
-			
+
 			function L0Init(args)
 				return true
 			end
-			
+
 			function L0Invoke(funcName, args)
 				if type(args) ~= "table" then
 					return false
 				end
-			
+
 				local key = args[0]
 				if type(key) ~= "string" then
 					return false
 				end
-			
+
 				if funcName == "SetGlobalState" then
 					local value = args[1]
 					if not(value) then
@@ -66,18 +70,61 @@ var (
 				end
 				return false
 			end
-			
+
 			function L0Query(args)
 				if type(args) ~= "table" then
 					return ""
 				end
-			
+
 				local key = args[0]
 				if type(key) ~= "string" then
 					return ""
 				end
-			
+
 				return L0.GetGlobalState(key)
-			end`),
-	}
+			end`)
 )
+
+const (
+	stringType = iota
+)
+
+func DoContractStateData(src []byte) ([]byte, error) {
+	if len(src) == 0 {
+		return nil, nil
+	}
+
+	buf := bytes.NewBuffer(src)
+	tp, err := buf.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+
+	switch tp {
+	case stringType:
+		len, err := utils.ReadVarInt(buf)
+		if err != nil {
+			return nil, err
+		}
+		data := make([]byte, len)
+		buf.Read(data)
+		return data, nil
+	default:
+		return nil, errors.New("not support states")
+	}
+}
+
+func ConcrateStateJson(v interface{}) (*bytes.Buffer, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return &bytes.Buffer{}, err
+	}
+
+	buf := new(bytes.Buffer)
+	buf.WriteByte(stringType)
+	lenByte := utils.VarInt(uint64(len(data)))
+	buf.Write(lenByte)
+	buf.Write(data)
+
+	return buf, nil
+}

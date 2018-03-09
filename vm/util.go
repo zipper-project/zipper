@@ -19,10 +19,11 @@
 package vm
 
 import (
-	"sync"
 	"bytes"
-	"errors"
 	"encoding/json"
+	"errors"
+	"sync"
+
 	"github.com/zipper-project/zipper/common/utils"
 )
 
@@ -39,8 +40,8 @@ var Txsync *TxSync
 
 func NewTxSync(workersCnt int) *TxSync {
 	Txsync = &TxSync{}
-	for i := 0; i<workersCnt; i++ {
-		Txsync.workerChans.Store(i,  make(chan struct{}, 1))
+	for i := 0; i < workersCnt; i++ {
+		Txsync.workerChans.Store(i, make(chan struct{}, 1))
 	}
 
 	return Txsync
@@ -95,4 +96,3 @@ func ConcrateStateJson(v interface{}) (*bytes.Buffer, error) {
 
 	return buf, nil
 }
-

@@ -19,32 +19,32 @@
 package luavm
 
 import (
-	"fmt"
-	"errors"
-	"strings"
-	"strconv"
-	"math/rand"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand"
+	"strconv"
+	"strings"
 
 	"github.com/yuin/gopher-lua"
 	"github.com/yuin/gopher-lua/parse"
-	"github.com/zipper-project/zipper/vm"
-	"github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/config"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/config"
+	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/vm"
 )
 
 // Start start vm process
 type LuaWorker struct {
-	isInit bool
-	isCanRedo bool
+	isInit     bool
+	isCanRedo  bool
 	workerFlag int
 
-	L *lua.LState
-	VMConf *vm.Config
+	L          *lua.LState
+	VMConf     *vm.Config
 	workerProc *vm.WorkerProc
-	luaProto  map[string]*lua.FunctionProto
-	luaLFunc  map[string]*lua.LFunction
+	luaProto   map[string]*lua.FunctionProto
+	luaLFunc   map[string]*lua.LFunction
 }
 
 // Create Lua worker
@@ -82,8 +82,8 @@ func (worker *LuaWorker) VmTerminate() {
 	worker.L.Close()
 }
 
-func (worker *LuaWorker)requestHandle(wp *vm.WorkerProc) (interface{}, error) {
-	txType := wp.ContractData.Transaction.GetType()
+func (worker *LuaWorker) requestHandle(wp *vm.WorkerProc) (interface{}, error) {
+	txType := wp.ContractData.Transaction.GetHeader().GetType()
 	if txType == proto.TransactionType_LuaContractInit {
 		return worker.InitContract(wp)
 	} else if txType == proto.TransactionType_ContractInvoke {
@@ -94,7 +94,6 @@ func (worker *LuaWorker)requestHandle(wp *vm.WorkerProc) (interface{}, error) {
 
 	return nil, errors.New(fmt.Sprintf("luavm no method match transaction type: %d", txType))
 }
-
 
 func (worker *LuaWorker) InitContract(wp *vm.WorkerProc) (interface{}, error) {
 	worker.resetProc(wp)
@@ -161,7 +160,7 @@ func (worker *LuaWorker) InvokeExecute(wp *vm.WorkerProc) (interface{}, error) {
 	return ok, err
 }
 
-func (worker *LuaWorker)QueryContract(wp *vm.WorkerProc) ([]byte, error) {
+func (worker *LuaWorker) QueryContract(wp *vm.WorkerProc) ([]byte, error) {
 	worker.resetProc(wp)
 	value, err := worker.execContract(wp.ContractData, "Query")
 	if err != nil {
@@ -253,7 +252,6 @@ func (worker *LuaWorker) execContract(cd *vm.ContractData, funcName string) (int
 	//}
 	//worker.L.PreloadModule("ZIP", loader)
 
-
 	_, ok := worker.luaProto[cd.ContractAddr]
 	if !ok {
 		chunk, err := parse.Parse(strings.NewReader(cd.ContractCode), "<string>")
@@ -275,7 +273,6 @@ func (worker *LuaWorker) execContract(cd *vm.ContractData, funcName string) (int
 		GFunction: nil,
 		Upvalues:  make([]*lua.Upvalue, 0)}
 	worker.L.Push(fn)
-
 
 	if err := worker.L.PCall(0, lua.MultRet, nil); err != nil {
 		return false, err
@@ -324,10 +321,10 @@ func (worker *LuaWorker) StoreContractCode() error {
 		err = worker.workerProc.CCallPutState(vm.ContractCodeKey, code.Bytes()) // add js contract code into state
 	}
 
-	return  err
+	return err
 }
 
-func (worker *LuaWorker)CheckContractCode(code string) error {
+func (worker *LuaWorker) CheckContractCode(code string) error {
 	if len(code) == 0 || len(code) > worker.VMConf.ExecLimitMaxScriptSize {
 		return errors.New("contract script code size illegal " +
 			strconv.Itoa(len(code)) +

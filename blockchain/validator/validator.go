@@ -32,7 +32,6 @@ import (
 	"github.com/zipper-project/zipper/coordinate"
 	"github.com/zipper-project/zipper/ledger"
 	"github.com/zipper-project/zipper/ledger/balance"
-	"github.com/zipper-project/zipper/ledger/contract"
 	"github.com/zipper-project/zipper/ledger/state"
 	"github.com/zipper-project/zipper/params"
 	"github.com/zipper-project/zipper/proto"
@@ -66,7 +65,6 @@ type Verification struct {
 	inTxs              map[crypto.Hash]*proto.Transaction
 	rwInTxs            sync.RWMutex
 	sync.RWMutex
-	sctx *contract.SmartConstract
 	//static map[crypto.Hash]time.Duration
 }
 
@@ -82,7 +80,6 @@ func NewVerification(config *Config, ledger *ledger.Ledger, consenter consensus.
 		accounts:           make(map[string]*balance.Balance),
 		assets:             make(map[uint32]*state.Asset),
 		inTxs:              make(map[crypto.Hash]*proto.Transaction),
-		sctx:               contract.NewSmartConstract(ledger.DBHandler(), ledger),
 	}
 }
 
