@@ -16,28 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package helper
+package config
 
 import (
-	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/peer"
 )
 
-// NewStack Create Stack instance
-func NewStack() *Stack {
-	return &Stack{}
-}
-
-// Stack Implenment consensus.IStack
-type Stack struct {
-}
-
-// GetBlockchainInfo Implenment consensus.IStack
-func (stack *Stack) GetBlockchainInfo() *consensus.BlockchainInfo {
-	return &consensus.BlockchainInfo{}
-}
-
-// VerifyTxs Implenment consensus.IStack
-func (stack *Stack) VerifyTxs(txs proto.Transactions) (proto.Transactions, proto.Transactions) {
-	return txs, nil
+func ServerOption() *peer.Option {
+	option := peer.NewDefaultOption()
+	option.ListenAddress = getString("net.listenAddr", option.ListenAddress)
+	option.ReconnectInterval = getDuration("net.connectTimeInterval", option.ReconnectInterval)
+	option.ReconnectTimes = getInt("net.reconnectTimes", option.ReconnectTimes)
+	option.KeepAliveInterval = getDuration("net.keepAliveInterval", option.KeepAliveInterval)
+	option.KeepAliveTimes = getInt("net.keepAliveTimes", option.KeepAliveTimes)
+	option.BootstrapNodes = getStringSlice("net.bootstrapNodes", option.BootstrapNodes)
+	option.MaxPeers = getInt("net.maxPeers", option.MaxPeers)
+	option.MinPeers = getInt("net.minPeers", option.MinPeers)
+	return option
 }

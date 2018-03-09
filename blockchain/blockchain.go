@@ -27,30 +27,33 @@ import (
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/blockchain/validator"
 	"github.com/zipper-project/zipper/common/crypto"
+	"github.com/zipper-project/zipper/common/db"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/config"
 	"github.com/zipper-project/zipper/consensus"
+	"github.com/zipper-project/zipper/consensus/consenter"
 	"github.com/zipper-project/zipper/ledger"
+	"github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/ledger/state"
+	"github.com/zipper-project/zipper/peer"
 	"github.com/zipper-project/zipper/proto"
 )
-
-// NetworkStack defines the relay interface
-type NetworkStack interface {
-	Relay(inv proto.IInventory)
-}
 
 // Blockchain is blockchain instance
 type Blockchain struct {
 	mu                 sync.Mutex
 	wg                 sync.WaitGroup
 	currentBlockHeader *proto.BlockHeader
+	
 	ledger             *ledger.Ledger
 	// validator
 	validator validator.Validator
 	// consensus
 	consenter consensus.Consenter
-	// network stack
-	pm NetworkStack
+	// server
+	server             *peer.Server
+
+	started bool
 
 	quitCh chan bool
 	txCh   chan *proto.Transaction
@@ -89,7 +92,6 @@ func NewBlockchain(ledger *ledger.Ledger) *Blockchain {
 	bc := &Blockchain{
 		mu:                 sync.Mutex{},
 		wg:                 sync.WaitGroup{},
-		ledger:             ledger,
 		quitCh:             make(chan bool),
 		txCh:               make(chan *proto.Transaction, 10000),
 		blkCh:              make(chan *proto.Block, 10),
@@ -97,26 +99,30 @@ func NewBlockchain(ledger *ledger.Ledger) *Blockchain {
 		orphans:            list.New(),
 	}
 	bc.load()
+
+	log.Debugf("start: db.NewDB...")
+	chainDb = db.NewDB(config.DBConfig())
+
+	log.Debugf("start: ledger.NewLedger...")
+	bc.ledger = ledger.NewLedger(chainDb, &ledger.Config{ExceptBlockDir: cfg.WriteExceptionBlockDir})
+
+	log.Debugf("start: consenter.NewConsenter...")
+	bc.consenter := consenter.NewConsenter(config.ConsenterOption(), bc)
+
+	bc.validator = validator.NewVerification(config.ValidatorConfig(cfg.PluginDir), newLedger, consenter)
+
+	log.Debugf("start: peer.NewPeer...")
+	bc.server = peer.NewServer(config.ServerOption())
+	
 	return bc
 }
 
-// SetBlockchainValidator sets the validator of the blockchain
-func (bc *Blockchain) SetBlockchainValidator(validator validator.Validator) {
-	bc.validator = validator
-	bc.ledger.Validator = bc.validator
-}
-
 // SetBlockchainConsenter sets the consenter of the blockchain
-func (bc *Blockchain) SetBlockchainConsenter(consenter consensus.Consenter) {
-	bc.consenter = consenter
+func (bc *Blockchain) Start() {
+	bc.server.Start()
 	if bc.consenter.Name() == "noops" {
-		bc.Start()
+		bc.StartServices()
 	}
-}
-
-// SetNetworkStack sets the node of the blockchain
-func (bc *Blockchain) SetNetworkStack(pm NetworkStack) {
-	bc.pm = pm
 }
 
 // CurrentHeight returns current heigt of the current block
@@ -153,7 +159,7 @@ func (bc *Blockchain) GetAsset(id uint32) *state.Asset {
 }
 
 // GetBalance returns balance
-func (bc *Blockchain) GetBalance(addr account.Address) *state.Balance {
+func (bc *Blockchain) GetBalance(addr account.Address) *balance.Balance {
 	if bc.validator == nil {
 		b, _ := bc.ledger.GetBalanceFromDB(addr)
 		return b
@@ -175,18 +181,26 @@ func (bc *Blockchain) GetTransaction(txHash crypto.Hash) (*proto.Transaction, er
 }
 
 // Start starts blockchain services
-func (bc *Blockchain) Start() {
-	// bc.wg.Add(1)
+func (bc *Blockchain) StartServices() {
 	// start consesnus
 	bc.StartConsensusService()
 	// start txpool
 	bc.StartTxPoolService()
 	log.Debug("BlockChain Service start")
-	// bc.wg.Wait()
+	bc.started = true
 }
 
-func (bc *Blockchain) Synced() bool {
-	return bc.synced
+func (bc *Blockchain) StartServices() {
+	// start consesnus
+	bc.StartConsensusService()
+	// start txpool
+	bc.StartTxPoolService()
+	log.Debug("BlockChain Service start")
+	bc.started = true
+}
+
+func (bc *Blockchain) Started() bool {
+	return bc.started
 }
 
 // StartConsensusService starts consensus service
@@ -195,8 +209,8 @@ func (bc *Blockchain) StartConsensusService() {
 	go func() {
 		for {
 			select {
+			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
 			case commitedTxs := <-bc.consenter.OutputTxsChannel():
-
 				//add lo
 				log.Infof("Outputs StartConsensusService len=%d", len(commitedTxs.Txs))
 
@@ -304,4 +318,41 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 		txs,
 	)
 	return blk
+}
+
+func (bc *Blockchain) RelayTx(inv proto.IInventory) {
+	var (
+		msg       *proto.Msg
+		invMsg := &proto.GetInvMsg{}
+	)
+	switch inv.(type) {
+	case *types.Transaction:
+		tx := inv.(*proto.Transaction)
+		if pm.filter.TestAndAdd(tx.Serialize()) {
+			log.Debugf("Bloom Test is true, txHash: %+v", tx.Hash())
+			return
+		}
+		if pm.Blockchain.ProcessTransaction(&tx, true) {
+			log.Debugf("ProcessTransaction, tx_hash: %+v", tx.Hash())
+			inventory.Type = proto.InvType_transaction
+			inventory.Hashes = []crypto.Hash{inv.Hash()}
+			//msg = proto.NewMsg(txMsg, inv.Serialize())
+		}
+	case *types.Block:
+		block := inv.(*types.Block)
+		if pm.filter.TestAndAdd(block.Serialize()) {
+			log.Debugf("Bloom Test is true, BlockHash: %+v", block.Hash())
+			return
+		}
+
+		if pm.Blockchain.ProcessBlock(block, true) {
+			log.Debugf("Relay inventory %v", inventory)
+			inventory.Type = proto.InvType_block
+			inventory.Hashes = []crypto.Hash{inv.Hash()}
+			//msg = p2p.NewMsg(invMsg, utils.Serialize(inventory))
+		}
+	}
+	if msg != nil {
+		bc.server.Broadcast(msg, peer.ALL)
+	}
 }

@@ -1,21 +1,22 @@
 package blocksync
 
 import (
-	"fmt"
 	"errors"
-	"github.com/zipper-project/zipper/types"
-	"github.com/zipper-project/zipper/ledger"
+	"fmt"
+
 	"github.com/zipper-project/zipper/blockchain"
-	"github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/common/crypto"
-	msgProto "github.com/zipper-project/zipper/peer/proto"
+	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/ledger"
 	"github.com/zipper-project/zipper/peer"
+	msgProto "github.com/zipper-project/zipper/peer/proto"
+	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/types"
 )
 
 type SyncWorker struct {
 	ledger *ledger.Ledger
-	bc *blockchain.Blockchain
+	bc     *blockchain.Blockchain
 }
 
 func (worker *SyncWorker) VmJob(data interface{}) (interface{}, error) {
@@ -46,13 +47,13 @@ func (worker *SyncWorker) VmReady() bool {
 func NewSyncWorker(ledger *ledger.Ledger, bc *blockchain.Blockchain) *SyncWorker {
 	return &SyncWorker{
 		ledger: ledger,
-		bc: bc,
+		bc:     bc,
 	}
 }
 
 func SetSyncWorkers(workerNums int, ledger *ledger.Ledger, bc *blockchain.Blockchain) []*SyncWorker {
 	var txWorkers []*SyncWorker
-	for i:=0; i< workerNums; i++ {
+	for i := 0; i < workerNums; i++ {
 		txWorkers = append(txWorkers, NewSyncWorker(ledger, bc))
 	}
 
@@ -91,7 +92,7 @@ func (worker *SyncWorker) OnGetBlocks(workerData types.WorkerData) {
 
 	if len(hashes) > 0 {
 		getInvMsg := &proto.GetInvMsg{
-			Type: proto.InvType_block,
+			Type:  proto.InvType_block,
 			Hashs: hashes,
 		}
 
@@ -148,7 +149,7 @@ func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
 		switch inv.Type {
 		case proto.InvType_block:
 			for _, h := range inv.Hashs {
-				if header, err := worker.ledger.GetBlockByHash([]byte(h)); err == nil && header != nil  {
+				if header, err := worker.ledger.GetBlockByHash([]byte(h)); err == nil && header != nil {
 					txs, err := worker.ledger.GetTxsByBlockHash([]byte(h), 100)
 					if err != nil {
 						log.Errorf("Can't GetTxsByBlockHash, err: %+v", err)
@@ -157,8 +158,8 @@ func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
 
 					blockMsg := &proto.OnBlockMsg{
 						Block: &proto.Block{
-							Header: header,
-							Transactions:txs,
+							Header:       header,
+							Transactions: txs,
 						},
 					}
 
@@ -189,21 +190,21 @@ func (worker *SyncWorker) OnBlock(workerData types.WorkerData) {
 		return
 	}
 
-	if worker.bc.CurrentHeight() + 1 < blockMsg.Block.Header.Height {
+	if worker.bc.CurrentHeight()+1 < blockMsg.Block.Header.Height {
 		getBlocksMsg := &proto.GetBlocksMsg{
 			LocatorHashes: []string{worker.bc.CurrentBlockHash().String()},
-			HashStop: crypto.Hash{}.String(),
+			HashStop:      crypto.Hash{}.String(),
 		}
 
-		worker.SendMsg(workerData.GetSendPeer(), 1,1, getBlocksMsg)
+		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getBlocksMsg)
 	} else if worker.bc.Relay(blockMsg.Block) {
-		if !worker.bc.IsStarted() && worker.bc.CurrentHeight() == worker.expectedHeight {
-			worker.bc.Start()
+		if !worker.bc.Started() && worker.bc.CurrentHeight() == worker.expectedHeight {
+			worker.bc.StartService()
 		}
 	}
 }
 
-func  (worker *SyncWorker) OnTransaction(workerData types.WorkerData) {
+func (worker *SyncWorker) OnTransaction(workerData types.WorkerData) {
 	txMsg := &proto.OnTransactionMsg{}
 	if err := txMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnTransactionMsg: %+v", workerData.GetMsg().Payload)

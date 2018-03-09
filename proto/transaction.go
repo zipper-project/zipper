@@ -129,6 +129,14 @@ func (tx *Transaction) Recipient() account.Address {
 	return account.HexToAddress(tx.Header.Recipient)
 }
 
+// Nonce returns the nonce of the transaction
+func (tx *Transaction) Nonce() uint32 { return tx.Header.Nonce }
+
+// CreateTime returns the create time of the transaction
+func (tx *Transaction) CreateTime() uint32 {
+	return tx.Header.CreateTime
+}
+
 // Transactions represents transaction slice type for basic sorting.
 type Transactions []*Transaction
 

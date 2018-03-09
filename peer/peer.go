@@ -214,7 +214,7 @@ func (peer *Peer) recv(ctx context.Context) {
 		peer.lastActiveTime = time.Now()
 
 		msg := &proto.Message{}
-		if err := msg.Unmarshal(data); err != nil {
+		if err := msg.UnmarshalMsg(data); err != nil {
 			log.Errorf("%s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		}
@@ -224,7 +224,7 @@ func (peer *Peer) recv(ctx context.Context) {
 			switch msg.Header.MsgID {
 			case HANDSHAKE:
 				handshake := &proto.HandShake{}
-				if err := handshake.Unmarshal(msg.Payload); err != nil {
+				if err := handshake.UnmarshalMsg(msg.Payload); err != nil {
 					return
 				}
 				if !verifyHandShake(handshake) {
@@ -243,7 +243,7 @@ func (peer *Peer) recv(ctx context.Context) {
 				go peer.loop(ctx)
 			case HANDSHAKEACK:
 				handshake := &proto.HandShake{}
-				if err := handshake.Unmarshal(msg.Payload); err != nil {
+				if err := handshake.UnmarshalMsg(msg.Payload); err != nil {
 					return
 				}
 				if !verifyHandShake(handshake) {
@@ -325,7 +325,7 @@ func (peer *Peer) send(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case msg := <-peer.sendChannel:
-			dataBytes, err := msg.Marshal()
+			dataBytes, err := msg.MarshalMsg()
 			if err != nil {
 				log.Errorf("msg marshal error --- %s", err)
 				continue

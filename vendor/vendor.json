@@ -139,6 +139,14 @@
 			"revisionTime": "2017-08-08T02:16:21Z"
 		},
 		{
+			"path": "github.com/hashicorp/hcl",
+			"revision": ""
+		},
+		{
+			"path": "github.com/hashicorp/hcl/hcl/printer",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "V1a5/Ra9HXKNuArt5WKUqu+Jxt8=",
 			"path": "github.com/lib/pq",
 			"revision": "88edab0803230a3898347e77b474f8c1820a1f20",
@@ -151,10 +159,22 @@
 			"revisionTime": "2018-02-01T18:47:07Z"
 		},
 		{
+			"path": "github.com/magiconair/properties",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "kUqagcesbbz7A2eCwDYntlvrEqs=",
 			"path": "github.com/mattn/go-sqlite3",
 			"revision": "696e2e43cb00dcb1acaf6073e01493e3c4197b75",
 			"revisionTime": "2018-02-18T13:15:52Z"
+		},
+		{
+			"path": "github.com/mitchellh/mapstructure",
+			"revision": ""
+		},
+		{
+			"path": "github.com/pelletier/go-toml",
+			"revision": ""
 		},
 		{
 			"checksumSHA1": "/75oK5RVdiy+bYLaLKcysy/NRLc=",
@@ -197,6 +217,18 @@
 			"path": "github.com/robertkrimen/otto/token",
 			"revision": "3b44b4dcb6c00477273595c312908e2412d07da6",
 			"revisionTime": "2017-11-30T10:32:05Z"
+		},
+		{
+			"path": "github.com/spf13/afero",
+			"revision": ""
+		},
+		{
+			"path": "github.com/spf13/cast",
+			"revision": ""
+		},
+		{
+			"path": "github.com/spf13/jwalterweatherman",
+			"revision": ""
 		},
 		{
 			"checksumSHA1": "UINsk+/nXUhGcKvNxm9mYchRuls=",

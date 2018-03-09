@@ -5,6 +5,27 @@ import (
 	"github.com/zipper-project/zipper/common/crypto"
 )
 
+// NewBlock returns an new block
+func NewBlock(prvHash crypto.Hash,
+	timeStamp, height, nonce uint32,
+	txsHash crypto.Hash,
+	Txs Transactions) *Block {
+	return &Block{
+		Header: NewBlockHeader(prvHash, timeStamp, height, nonce, txsHash),
+	}
+}
+
+// NewBlockHeader returns a blockheader
+func NewBlockHeader(prvHash crypto.Hash, timeStamp, height, nonce uint32, txsHash crypto.Hash) *BlockHeader {
+	return &BlockHeader{
+		prvHash.String(),
+		timeStamp,
+		nonce,
+		txsHash.String(),
+		height,
+	}
+}
+
 // IInventory defines interface that broadcast data should implements
 type IInventory interface {
 	Hash() crypto.Hash
@@ -42,3 +63,6 @@ func (b *Block) Deserialize(data []byte) error {
 func (b *Block) Hash() crypto.Hash {
 	return b.Header.Hash()
 }
+
+// Height returns the block height
+func (b *Block) Height() uint32 { return b.Header.Height }

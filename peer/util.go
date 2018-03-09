@@ -93,7 +93,7 @@ func NewHandshakeMessage() *proto.Message {
 	}
 
 	handshake := GetHandshake()
-	payload, _ := handshake.Marshal()
+	payload, _ := handshake.MarshalMsg()
 	return proto.NewMessage(header, payload)
 }
 
@@ -104,6 +104,6 @@ func NewHandshakeAckMessage() *proto.Message {
 	}
 
 	handshake := GetHandshake()
-	payload, _ := handshake.Marshal()
+	payload, _ := handshake.MarshalMsg()
 	return proto.NewMessage(header, payload)
 }

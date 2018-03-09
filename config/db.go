@@ -16,28 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package helper
+package config
 
 import (
-	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/proto"
+	"path/filepath"
+
+	"github.com/zipper-project/zipper/common/db"
 )
 
-// NewStack Create Stack instance
-func NewStack() *Stack {
-	return &Stack{}
-}
-
-// Stack Implenment consensus.IStack
-type Stack struct {
-}
-
-// GetBlockchainInfo Implenment consensus.IStack
-func (stack *Stack) GetBlockchainInfo() *consensus.BlockchainInfo {
-	return &consensus.BlockchainInfo{}
-}
-
-// VerifyTxs Implenment consensus.IStack
-func (stack *Stack) VerifyTxs(txs proto.Transactions) (proto.Transactions, proto.Transactions) {
-	return txs, nil
+// DBConfig returns configurations for database
+func DBConfig() *db.Config {
+	dbConfig := db.DefaultConfig()
+	dbConfig.DbPath = filepath.Join(DataDir, ChainDataDirName)
+	dbConfig.Columnfamilies = getStringSlice("db.columnfamilies", dbConfig.Columnfamilies)
+	dbConfig.KeepLogFileNumber = getInt("db.keepLogFileNumber", dbConfig.KeepLogFileNumber)
+	dbConfig.MaxLogFileSize = getInt("db.maxLogFileSize", dbConfig.MaxLogFileSize)
+	dbConfig.LogLevel = getString("db.loglevel", dbConfig.LogLevel)
+	return dbConfig
 }

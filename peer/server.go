@@ -64,6 +64,10 @@ var option = &Option{
 	CAPath:            "",
 }
 
+func NewDefaultOption() *Option {
+	return option
+}
+
 // Server represent a p2p network server
 type Server struct {
 	cancel    context.CancelFunc
@@ -74,12 +78,15 @@ type Server struct {
 
 	RootCertificate []byte
 	Certificate     []byte
+
+	option *Option
 }
 
 // NewServer return a new p2p server
-func NewServer() *Server {
+func NewServer(option *Option) *Server {
 	srv := &Server{
 		peerManager: NewPeerManager(),
+		option:      option,
 	}
 	return srv
 }
@@ -93,14 +100,14 @@ func (srv *Server) Start() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	srv.cancel = cancel
-	addrs := strings.Split(option.ListenAddress, ",")
+	addrs := strings.Split(srv.option.ListenAddress, ",")
 	for _, addr := range addrs {
 		srv.waitGroup.Add(1)
 		go srv.listen(ctx, addr)
 	}
 	log.Infoln("Server Started")
 
-	for _, bNode := range option.BootstrapNodes {
+	for _, bNode := range srv.option.BootstrapNodes {
 		peer := &Peer{}
 		if err := peer.ParsePeer(bNode); err != nil {
 			continue
@@ -128,7 +135,7 @@ func (srv *Server) listen(ctx context.Context, addr string) (err error) {
 	}
 
 	defer listener.Close()
-	listener.SetDeadline(time.Now().Add(option.DeadLine))
+	listener.SetDeadline(time.Now().Add(srv.option.DeadLine))
 	for {
 		select {
 		case <-ctx.Done():
