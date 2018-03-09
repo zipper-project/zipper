@@ -81,29 +81,25 @@ func TestAppendBlock(t *testing.T) {
 		var hashSlice []crypto.Hash
 		for j := 0; j < 1; j++ {
 			tx := &pb.Transaction{
-				TxData: pb.TxData{
-					Header: &pb.TxHeader{
-						FromChain:  account.NewChainCoordinate([]byte{byte(i + j)}),
-						ToChain:    account.NewChainCoordinate([]byte{byte(i + j)}),
-						Type:       pb.TransactionType_Atomic,
-						Nonce:      rand.Uint32(),
-						Sender:     sender.String(),
-						Recipient:  reciepent.String(),
-						AssetID:    1,
-						Amount:     amount.Int64(),
-						Fee:        fee.Int64(),
-						CreateTime: utils.CurrentTimestamp(),
-					},
+				Header: &pb.TxHeader{
+					FromChain:  account.NewChainCoordinate([]byte{byte(i + j)}),
+					ToChain:    account.NewChainCoordinate([]byte{byte(i + j)}),
+					Type:       pb.TransactionType_Atomic,
+					Nonce:      rand.Uint32(),
+					Sender:     sender.String(),
+					Recipient:  reciepent.String(),
+					AssetID:    1,
+					Amount:     amount.Int64(),
+					Fee:        fee.Int64(),
+					CreateTime: utils.CurrentTimestamp(),
 				},
 			}
 
 			//sing tx
 			keypair, _ := crypto.GenerateKey()
 			s, _ := keypair.Sign(tx.SignHash().Bytes())
-			tx.WithSignature(s)
-
-			nb.TxDatas = append(nb.TxDatas, &tx.TxData)
-
+			tx.GetHeader().Signature = s.Bytes()
+			nb.Transactions = append(nb.Transactions, tx)
 			hashSlice = append(hashSlice, tx.Hash())
 
 			testTxHash = tx.Hash()
@@ -119,7 +115,7 @@ func TestAppendBlock(t *testing.T) {
 		}
 
 		previousHash = nb.Hash()
-		t.Log("tx len: ", len(nb.GetTxDatas()), "block height:", nb.GetHeader().GetHeight())
+		t.Log("tx len: ", len(nb.Transactions), "block height:", nb.GetHeader().GetHeight())
 		blockHeaderBytes = nb.Header.Serialize()
 	}
 	return

@@ -20,26 +20,25 @@ package ledger
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"path/filepath"
-
-	"fmt"
-
-	"errors"
 	"strconv"
-	"strings"
+	"time"
 
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/common/crypto"
 	"github.com/zipper-project/zipper/common/db"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/common/utils"
-	"github.com/zipper-project/zipper/config"
 	"github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/ledger/blockstorage"
-	"github.com/zipper-project/zipper/ledger/contract"
 	"github.com/zipper-project/zipper/ledger/state"
+	"github.com/zipper-project/zipper/params"
 	pb "github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/vm"
+	"github.com/zipper-project/zipper/vm/bsvm"
 )
 
 var (
@@ -50,10 +49,10 @@ var (
 type Ledger struct {
 	dbHandler *db.BlockchainDB
 	block     *blockstorage.Blockchain
-	state     *state.State
-	contract  *contract.SmartConstract
+	state     *state.BLKRWSet
 	conf      *Config
 	mdbChan   chan []*db.WriteBatch
+	vmEnv     map[string]*mpool.VirtualMachine
 }
 
 // NewLedger returns the ledger instance
@@ -62,13 +61,14 @@ func NewLedger(kvdb *db.BlockchainDB, conf *Config) *Ledger {
 		ledgerInstance = &Ledger{
 			dbHandler: kvdb,
 			block:     blockstorage.NewBlockchain(kvdb),
-			state:     state.NewState(kvdb),
+			state:     state.NewBLKRWSet(kvdb),
 		}
-		ledgerInstance.contract = contract.NewSmartConstract(kvdb, ledgerInstance)
+		ledgerInstance.init()
 		_, err := ledgerInstance.Height()
 		if err != nil {
-			ledgerInstance.init()
+			log.Error(err)
 		}
+		ledgerInstance.initVmEnv()
 	}
 	return ledgerInstance
 }
@@ -77,47 +77,37 @@ func (ledger *Ledger) DBHandler() *db.BlockchainDB {
 	return ledger.dbHandler
 }
 
-func (ledger *Ledger) reOrgBatches(batches []*db.WriteBatch) map[string][]*db.WriteBatch {
-	reBatches := make(map[string][]*db.WriteBatch)
-	for _, batch := range batches {
-		columnName := batch.CfName
-		batchKey := batch.Key
-		if 0 == strings.Compare(batch.CfName, ledger.contract.GetColumnFamily()) {
-			keys := strings.SplitN(string(batch.Key), "|", 2)
-			if len(keys) != 2 {
-				continue
-			}
-			columnName = "contract|" + keys[0]
-			batchKey = []byte(keys[1])
-		}
-
-		if _, ok := reBatches[columnName]; !ok {
-			reBatches[columnName] = make([]*db.WriteBatch, 0)
-		}
-
-		reBatches[columnName] = append(reBatches[columnName], db.NewWriteBatch(columnName, batch.Operation, batchKey, batch.Value, batch.Typ))
+func (ledger *Ledger) initVmEnv() {
+	ledger.vmEnv = make(map[string]*mpool.VirtualMachine)
+	bsWorkers := make([]mpool.VmWorker, vm.VMConf.BsWorkerCnt)
+	for i := 0; i < vm.VMConf.BsWorkerCnt; i++ {
+		bsWorkers[i] = bsvm.NewBsWorker(vm.VMConf, i)
 	}
+	addNewEnv := func(name string, worker []mpool.VmWorker) *mpool.VirtualMachine {
+		env := mpool.CreateCustomVM(worker)
+		env.Open(name)
+		ledger.vmEnv[name] = env
 
-	return reBatches
+		return env
+	}
+	addNewEnv("bs", bsWorkers)
 }
 
 // VerifyChain verifys the blockchain data
 func (ledger *Ledger) VerifyChain() {
 	height, err := ledger.Height()
 	if err != nil {
-		panic(err)
+		log.Panicf("VerifyChain -- Height %s", err)
 	}
 	currentBlockHeader, err := ledger.block.GetBlockByNumber(height)
 	for i := height; i >= 1; i-- {
 		previousBlockHeader, err := ledger.block.GetBlockByNumber(i - 1) // storage
 		if previousBlockHeader != nil && err != nil {
-
-			log.Debug("get block err")
-			panic(err)
+			log.Panicf("VerifyChain -- GetBlockByNumber %s", err)
 		}
 		// verify previous block
 		if previousBlockHeader.Hash().String() != currentBlockHeader.PreviousHash {
-			panic(fmt.Errorf("block [%d], veifychain breaks", i))
+			log.Panicf("VerifyChain -- block [%d] mismatch, veifychain breaks", i)
 		}
 		currentBlockHeader = previousBlockHeader
 	}
@@ -125,7 +115,6 @@ func (ledger *Ledger) VerifyChain() {
 
 // GetGenesisBlock returns the genesis block of the ledger
 func (ledger *Ledger) GetGenesisBlock() *pb.BlockHeader {
-
 	genesisBlockHeader, err := ledger.GetBlockByNumber(0)
 	if err != nil {
 		panic(err)
@@ -135,27 +124,44 @@ func (ledger *Ledger) GetGenesisBlock() *pb.BlockHeader {
 
 // AppendBlock appends a new block to the ledger,flag = true pack up block ,flag = false sync block
 func (ledger *Ledger) AppendBlock(block *pb.Block, flag bool) error {
-	var (
-		txWriteBatchs []*db.WriteBatch
-		txs           pb.Transactions
-	)
 
-	bh, _ := ledger.Height()
-	ledger.contract.StartConstract(bh)
+	//go ledger.Validator.RemoveTxsInVerification(block.Transactions)
 
-	txWriteBatchs, txs, _ = ledger.executeTransactions(block.GetTxDatas(), flag)
-	block.Header.TxsMerkleHash = merkleRootHash(txs).String()
+	ledger.state.SetBlock(block.GetHeader().GetHeight(), uint32(len(block.Transactions)))
 
-	writeBatchs := ledger.block.AppendBlock(block)
-	writeBatchs = append(writeBatchs, txWriteBatchs...)
-	writeBatchs = append(writeBatchs, ledger.state.WriteBatchs()...)
-	if err := ledger.dbHandler.AtomicWrite(writeBatchs); err != nil {
-		return err
+	wokerData := func(tx *pb.Transaction, txIdx int) *vm.WorkerProc {
+		return &vm.WorkerProc{
+			ContractData: vm.NewContractData(tx),
+			SCHandler:    state.NewTXRWSet(ledger.state, tx, uint32(txIdx)),
+		}
 	}
 
-	ledger.contract.StopContract(bh)
+	//log.Debugf("appendBlock cnt: %+v ...........", len(block.Transactions))
+	startTime := time.Now()
+	vm.NewTxSync(vm.VMConf.BsWorkerCnt)
+	for idx, tx := range block.Transactions {
+		ledger.vmEnv["bs"].SendWorkCleanAsync(&vm.WorkerProcWithCallback{
+			WorkProc: wokerData(tx, idx),
+			Idx:      idx,
+		})
+	}
 
-	return nil
+	writeBatches, oktxs, errtxs, err := ledger.state.ApplyChanges()
+	if err != nil || len(errtxs) != 0 {
+		//TODO
+		log.Errorf("AppendBlock Err: %+v, errtxs: %+v", err, len(errtxs))
+	}
+
+	execTime := time.Now().Sub(startTime)
+	blkHt, _ := ledger.Height()
+	log.Warnf("appendBlock cnt: %+v, oktxs: %+v, errtxs: %+v, blkht: %+v, execTime: %s ...........", len(block.Transactions), len(oktxs), len(errtxs), blkHt, execTime)
+
+	block.Transactions = oktxs
+	block.Header.TxsMerkleHash = merkleRootHash(block.Transactions).String()
+	block.Header.StateHash = ledger.state.RootHash().String()
+	blkWriteBatches := ledger.block.AppendBlock(block)
+	writeBatches = append(writeBatches, blkWriteBatches...)
+	return ledger.dbHandler.AtomicWrite(writeBatches)
 }
 
 // GetBlockByNumber gets the block by the given number
@@ -186,6 +192,11 @@ func (ledger *Ledger) GetTransactionHashList(number uint32) ([]crypto.Hash, erro
 // Height returns height of ledger
 func (ledger *Ledger) Height() (uint32, error) {
 	return ledger.block.GetBlockchainHeight()
+}
+
+//ComplexQuery com
+func (ledger *Ledger) ComplexQuery(key string) ([]byte, error) {
+	return ledger.state.ComplexQuery(key)
 }
 
 //GetLastBlockHash returns last block hash
@@ -231,24 +242,29 @@ func (ledger *Ledger) GetTxByTxHash(txHashBytes []byte) (*pb.Transaction, error)
 	return ledger.block.GetTransactionByTxHash(txHashBytes)
 }
 
-// GetBalanceFromDB returns balance by account
-func (ledger *Ledger) GetBalanceFromDB(addr account.Address) (*balance.Balance, error) {
-	return ledger.state.GetBalance(addr)
+// GetBalance returns balance by account
+func (ledger *Ledger) GetBalance(addr account.Address) (*balance.Balance, error) {
+	return ledger.state.GetBalances(addr.String())
 }
 
-// GetAssetFromDB returns asset
-func (ledger *Ledger) GetAssetFromDB(id uint32) (*state.Asset, error) {
+// GetAsset returns asset
+func (ledger *Ledger) GetAsset(id uint32) (*state.Asset, error) {
 	return ledger.state.GetAsset(id)
+}
+
+// GetAssets returns assets
+func (ledger *Ledger) GetAssets() (map[uint32]*state.Asset, error) {
+	return ledger.state.GetAssets()
 }
 
 //QueryContract processes new contract query transaction
 func (ledger *Ledger) QueryContract(tx *pb.Transaction) ([]byte, error) {
-	return ledger.contract.QueryContract(tx)
+	//return ledger.state.QueryContract(tx)
+	return nil, nil
 }
 
 // init generates the genesis block
 func (ledger *Ledger) init() error {
-
 	// genesis block
 	blockHeader := new(pb.BlockHeader)
 	blockHeader.TimeStamp = uint32(0)
@@ -258,125 +274,48 @@ func (ledger *Ledger) init() error {
 	genesisBlock := new(pb.Block)
 	genesisBlock.Header = blockHeader
 	writeBatchs := ledger.block.AppendBlock(genesisBlock)
-	if err := ledger.state.UpdateAsset(0, account.Address{}, account.Address{}, "{}"); err != nil {
-		panic(err)
-	}
-	writeBatchs = append(writeBatchs, ledger.state.WriteBatchs()...)
 
 	// admin address
-	buf, err := contract.ConcrateStateJson(contract.DefaultAdminAddr)
+	buf, err := state.ConcrateStateJson(state.DefaultAdminAddr)
 	if err != nil {
 		return err
 	}
 
 	writeBatchs = append(writeBatchs,
-		db.NewWriteBatch(contract.ColumnFamily,
+		db.NewWriteBatch(ledger.state.GetChainCodeCF(),
 			db.OperationPut,
-			[]byte(contract.EnSmartContractKey(config.GlobalStateKey, config.AdminKey)),
-			buf.Bytes(), contract.ColumnFamily))
+			[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.AdminKey)),
+			buf.Bytes(), ledger.state.GetChainCodeCF()))
 
 	// global contract
-	buf, err = contract.ConcrateStateJson(&contract.DefaultGlobalContract)
+	buf, err = state.ConcrateStateJson(&vm.ContractCode{
+		state.DefaultGlobalContractCode,
+		state.DefaultGlobalContractType,
+	})
 	if err != nil {
 		return err
 	}
 
 	writeBatchs = append(writeBatchs,
-		db.NewWriteBatch(contract.ColumnFamily,
+		db.NewWriteBatch(ledger.state.GetChainCodeCF(),
 			db.OperationPut,
-			[]byte(contract.EnSmartContractKey(config.GlobalStateKey, config.GlobalContractKey)),
-			buf.Bytes(), contract.ColumnFamily))
+			[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.GlobalContractKey)),
+			buf.Bytes(), ledger.state.GetChainCodeCF()))
 
-	return ledger.dbHandler.AtomicWrite(writeBatchs)
-
-}
-
-func (ledger *Ledger) executeTransactions(txDatas []*pb.TxData, flag bool) ([]*db.WriteBatch, pb.Transactions, pb.Transactions) {
-	var (
-		err                error
-		errTxs             pb.Transactions
-		syncTxs            pb.Transactions
-		syncContractGenTxs pb.Transactions
-		writeBatchs        []*db.WriteBatch
-	)
-
-	for _, txData := range txDatas {
-		tx := &pb.Transaction{TxData: *txData}
-		switch tp := tx.GetType(); tp {
-		case pb.TransactionType_JSContractInit, pb.TransactionType_LuaContractInit, pb.TransactionType_ContractInvoke:
-			if err = ledger.executeTransaction(tx, false); err != nil {
-				errTxs = append(errTxs, tx)
-
-			}
-			var ttxs pb.Transactions
-			ttxs, err = ledger.executeSmartContractTx(tx)
-			if err != nil {
-				errTxs = append(errTxs, tx)
-
-			} else {
-				var tttxs pb.Transactions
-				for _, tt := range ttxs {
-					if err = ledger.executeTransaction(tt, false); err != nil {
-						break
-					}
-					tttxs = append(tttxs, tt)
-				}
-				if len(tttxs) != len(ttxs) {
-					for _, tt := range tttxs {
-						ledger.executeTransaction(tt, true)
-					}
-					errTxs = append(errTxs, tx)
-
-				}
-				syncContractGenTxs = append(syncContractGenTxs, tttxs...)
-			}
-			syncTxs = append(syncTxs, tx)
-		default:
-			if err = ledger.executeTransaction(tx, false); err != nil {
-				errTxs = append(errTxs, tx)
-
-			}
-			syncTxs = append(syncTxs, tx)
-		}
-		continue
-	}
-
-	writeBatchs, err = ledger.contract.AddChangesForPersistence(writeBatchs)
+	err = ledger.dbHandler.AtomicWrite(writeBatchs)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	if flag {
-		syncTxs = append(syncTxs, syncContractGenTxs...)
-	}
-	return writeBatchs, syncTxs, errTxs
-}
-
-func (ledger *Ledger) executeTransaction(tx *pb.Transaction, rollback bool) error {
-
-	return nil
-}
-
-func (ledger *Ledger) executeSmartContractTx(tx *pb.Transaction) (pb.Transactions, error) {
-	return ledger.contract.ExecuteSmartContractTx(tx)
+	return err
 }
 
 func (ledger *Ledger) checkCoordinate(tx *pb.Transaction) bool {
-	fromChainID := account.HexToChainCoordinate(tx.FromChain()).Bytes()
-	toChainID := account.HexToChainCoordinate(tx.ToChain()).Bytes()
+	fromChainID := tx.GetHeader().GetFromChain()
+	toChainID := tx.GetHeader().GetToChain()
 	if bytes.Equal(fromChainID, toChainID) {
 		return true
 	}
 	return false
-}
-
-//GetTmpBalance get balance
-func (ledger *Ledger) GetTmpBalance(addr account.Address) (*balance.Balance, error) {
-	balance, err := ledger.state.GetTmpBalance(addr)
-	if err != nil {
-		log.Error("can't get balance from db")
-	}
-
-	return balance, err
 }
 
 func (ledger *Ledger) writeBlock(data interface{}) error {

@@ -19,25 +19,25 @@
 package jsvm
 
 import (
-	"fmt"
-	"time"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
-	"encoding/json"	
-	
+	"time"
+
 	"github.com/robertkrimen/otto"
-	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/params"
 	"github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/config"
+	"github.com/zipper-project/zipper/vm"
 )
 
 type JsWorker struct {
-	isInit bool
-	isCanRedo bool
-	VMConf *vm.Config
+	isInit     bool
+	isCanRedo  bool
+	VMConf     *vm.Config
 	workerProc *vm.WorkerProc
-	ottoVM *otto.Otto
+	ottoVM     *otto.Otto
 }
 
 func NewJsWorker(conf *vm.Config) *JsWorker {
@@ -79,9 +79,8 @@ func (worker *JsWorker) VmTerminate() {
 }
 
 // handler all request
-func (worker *JsWorker)requestHandle(wp *vm.WorkerProc) (interface{}, error) {
-	fmt.Println( wp.ContractData.Transaction.GetType())
-	txType := wp.ContractData.Transaction.GetType()
+func (worker *JsWorker) requestHandle(wp *vm.WorkerProc) (interface{}, error) {
+	txType := wp.ContractData.Transaction.GetHeader().GetType()
 	if txType == proto.TransactionType_JSContractInit {
 		return worker.InitContract(wp)
 	} else if txType == proto.TransactionType_ContractInvoke {
@@ -137,7 +136,6 @@ func (worker *JsWorker) InvokeExecute(wp *vm.WorkerProc) (interface{}, error) {
 		wp.ContractData.ContractCode = string(code)
 	}
 
-
 	ok, err := worker.execContract(wp.ContractData, "Invoke")
 	if !ok.(bool) || err != nil {
 		return ok, err
@@ -153,7 +151,7 @@ func (worker *JsWorker) InvokeExecute(wp *vm.WorkerProc) (interface{}, error) {
 }
 
 // QueryContract call Query not commit change
-func (worker *JsWorker)QueryContract(wp *vm.WorkerProc) ([]byte, error) {
+func (worker *JsWorker) QueryContract(wp *vm.WorkerProc) ([]byte, error) {
 	worker.resetProc(wp)
 	result, err := worker.execContract(wp.ContractData, "Query")
 	if err != nil {
@@ -178,7 +176,7 @@ func (worker *JsWorker) txTransfer() error {
 	return nil
 }
 
-func (worker *JsWorker)workerInit(isInit bool, vmconf *vm.Config) {
+func (worker *JsWorker) workerInit(isInit bool, vmconf *vm.Config) {
 	worker.VMConf = vmconf
 	worker.workerProc = &vm.WorkerProc{}
 	worker.ottoVM = otto.New()
@@ -188,9 +186,8 @@ func (worker *JsWorker)workerInit(isInit bool, vmconf *vm.Config) {
 	worker.isInit = true
 }
 
-
 // execContract start a js vm and execute smart contract script
-func (worker *JsWorker)execContract(cd *vm.ContractData, funcName string) (result interface{}, err error) {
+func (worker *JsWorker) execContract(cd *vm.ContractData, funcName string) (result interface{}, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			result = false
@@ -239,7 +236,7 @@ func (worker *JsWorker) GetContractCode() (string, error) {
 	cc := new(vm.ContractCode)
 	var code []byte
 	if len(worker.workerProc.ContractData.ContractAddr) == 0 {
-		code, err = worker.workerProc.SCHandler.GetGlobalState(config.GlobalContractKey)
+		code, err = worker.workerProc.SCHandler.GetGlobalState(params.GlobalContractKey)
 	} else {
 		code, err = worker.workerProc.SCHandler.GetState(vm.ContractCodeKey)
 	}
@@ -267,15 +264,15 @@ func (worker *JsWorker) StoreContractCode() error {
 	}
 
 	if len(worker.workerProc.ContractData.ContractAddr) == 0 {
-		err = worker.workerProc.CCallPutState(config.GlobalContractKey, code.Bytes())
+		err = worker.workerProc.CCallPutState(params.GlobalContractKey, code.Bytes())
 	} else {
 		err = worker.workerProc.CCallPutState(vm.ContractCodeKey, code.Bytes()) // add js contract code into state
 	}
 
-	return  err
+	return err
 }
 
-func (worker *JsWorker)CheckContractCode(code string) error {
+func (worker *JsWorker) CheckContractCode(code string) error {
 	if len(code) == 0 || len(code) > worker.VMConf.ExecLimitMaxScriptSize {
 		return errors.New("contract script code size illegal " +
 			strconv.Itoa(len(code)) +

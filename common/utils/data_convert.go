@@ -105,16 +105,25 @@ func DecodeUint32(bytes []byte, cnt uint32) ([]uint32, error) {
 	return ret, nil
 }
 
-func Float64ToByte(float float64) []byte {
-	bits := math.Float64bits(float)
+func Float64ToByte(src float64) []byte {
+	bits := math.Float64bits(src)
 	bytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bytes, bits)
-
 	return bytes
 }
 
-func ByteToFloat64(bytes []byte) float64 {
-	bits := binary.LittleEndian.Uint64(bytes)
-
+func ByteToFloat64(src []byte) float64 {
+	bits := binary.LittleEndian.Uint64(src)
 	return math.Float64frombits(bits)
 }
+
+// func Int64ToByte(src int64) []byte {
+// 	buf := new(bytes.Buffer)
+// 	binary.Write(buf, binary.LittleEndian, src)
+// 	return buf.Bytes()
+// }
+
+// func ByteToInt64(src []byte) int64 {
+
+// 	return
+// }

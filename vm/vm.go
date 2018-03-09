@@ -20,6 +20,7 @@ package vm
 
 import (
 	ltyes "github.com/zipper-project/zipper/ledger/balance"
+	"github.com/zipper-project/zipper/ledger/state"
 	"github.com/zipper-project/zipper/proto"
 )
 
@@ -52,14 +53,7 @@ type ISmartConstract interface {
 	//GetByPrefix(prefix string) ([]*db.KeyValue, error)
 
 	//GetByRange(startKey, limitKey string) ([]*db.KeyValue, error)
-
-	CallBack(response *MockerCallBackResponse) error
-}
-
-type MockerCallBackResponse struct {
-	IsCanRedo bool
-	Err       error
-	Result    interface{}
+	CallBack(response *state.CallBackResponse) error
 }
 
 type BVMEngine interface {
