@@ -101,7 +101,7 @@ func (tx *Transaction) Verfiy() (account.Address, error) {
 		}
 
 	case TransactionType_Merged:
-		a = account.ChainCoordinateToAddress(tx.FromChain())
+		a = account.ChainCoordinateToAddress(account.HexToChainCoordinate(tx.FromChain()))
 	}
 	return a, err
 }
@@ -112,29 +112,51 @@ func (tx *Transaction) Sender() account.Address {
 }
 
 // FromChain returns the chain coordinate of the sender
-func (tx *Transaction) FromChain() account.ChainCoordinate {
-	return account.NewChainCoordinate(tx.Header.FromChain)
+func (tx *Transaction) FromChain() string {
+	return account.NewChainCoordinate(tx.Header.FromChain).String()
 }
 
 // ToChain returns the chain coordinate of the recipient
-func (tx *Transaction) ToChain() account.ChainCoordinate {
-	return account.NewChainCoordinate(tx.Header.ToChain)
+func (tx *Transaction) ToChain() string {
+	return account.NewChainCoordinate(tx.Header.ToChain).String()
 }
 
 // IsLocalChain returns whether or not local chain
-func (tx *Transaction) IsLocalChain() bool { return bytes.Compare(tx.FromChain(), tx.ToChain()) == 0 }
+func (tx *Transaction) IsLocalChain() bool {
+	return bytes.Compare([]byte(tx.FromChain()), []byte(tx.ToChain())) == 0
+}
 
 // Recipient returns the address of the recipient
 func (tx *Transaction) Recipient() account.Address {
 	return account.HexToAddress(tx.Header.Recipient)
 }
 
+// AssetID returns the transfer asset of the transaction
+func (tx *Transaction) AssetID() uint32 {
+	return tx.Header.AssetID
+}
+
+// Amount returns the transfer amount of the transaction
+func (tx *Transaction) Amount() int64 { return tx.Header.Amount }
+
+// Fee returns the nonce of the transaction
+func (tx *Transaction) Fee() int64 { return tx.Header.Fee }
+
 // Nonce returns the nonce of the transaction
 func (tx *Transaction) Nonce() uint32 { return tx.Header.Nonce }
 
+// GetType returns transaction type
+func (tx *Transaction) GetType() TransactionType { return tx.Header.Type }
+
 // CreateTime returns the create time of the transaction
-func (tx *Transaction) CreateTime() uint32 {
-	return tx.Header.CreateTime
+func (tx *Transaction) CreateTime() uint32 { return tx.Header.CreateTime }
+
+// Compare implements interface consensus need
+func (tx *Transaction) Compare(v interface{}) int {
+	if tx.CreateTime() >= v.(*Transaction).CreateTime() {
+		return 1
+	}
+	return 0
 }
 
 // Transactions represents transaction slice type for basic sorting.

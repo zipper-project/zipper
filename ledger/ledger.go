@@ -20,10 +20,6 @@ package ledger
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"io/ioutil"
-	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/zipper-project/zipper/account"
@@ -50,13 +46,12 @@ type Ledger struct {
 	dbHandler *db.BlockchainDB
 	block     *blockstorage.Blockchain
 	state     *state.BLKRWSet
-	conf      *Config
 	mdbChan   chan []*db.WriteBatch
 	vmEnv     map[string]*mpool.VirtualMachine
 }
 
 // NewLedger returns the ledger instance
-func NewLedger(kvdb *db.BlockchainDB, conf *Config) *Ledger {
+func NewLedger(kvdb *db.BlockchainDB) *Ledger {
 	if ledgerInstance == nil {
 		ledgerInstance = &Ledger{
 			dbHandler: kvdb,
@@ -316,33 +311,6 @@ func (ledger *Ledger) checkCoordinate(tx *pb.Transaction) bool {
 		return true
 	}
 	return false
-}
-
-func (ledger *Ledger) writeBlock(data interface{}) error {
-	var bvalue []byte
-	switch data.(type) {
-	case []*db.WriteBatch:
-		orgData := data.([]*db.WriteBatch)
-		bvalue = utils.Serialize(orgData)
-	}
-
-	height, err := ledger.Height()
-	if err != nil {
-		log.Errorf("can't get blockchain height")
-	}
-
-	path := ledger.conf.ExceptBlockDir + string(filepath.Separator)
-	fileName := path + strconv.Itoa(int(height))
-	if utils.FileExist(fileName) {
-		log.Infof("BlockChan have error, please check ...")
-		return errors.New("except block have existed")
-	}
-
-	err = ioutil.WriteFile(fileName, bvalue, 0666)
-	if err != nil {
-		log.Errorf("write file: %s fail err: %+v", fileName, err)
-	}
-	return err
 }
 
 func merkleRootHash(txs []*pb.Transaction) crypto.Hash {

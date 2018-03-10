@@ -67,3 +67,8 @@ func (b *Block) Hash() crypto.Hash {
 
 // Height returns the block height
 func (b *Block) Height() uint32 { return b.Header.Height }
+
+// PreviousHash returns the previous hash of the block
+func (b *Block) PreviousHash() string {
+	return b.Header.PreviousHash
+}

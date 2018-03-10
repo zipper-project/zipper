@@ -47,7 +47,6 @@ type Validator interface {
 	GetTransactionByHash(txHash crypto.Hash) (*proto.Transaction, bool)
 	GetAsset(id uint32) *state.Asset
 	GetBalance(addr account.Address) *balance.Balance
-	SecurityPluginDir() string
 }
 
 type Verification struct {
@@ -245,7 +244,7 @@ func (v *Verification) VerifyTxs(txs proto.Transactions) (ttxs proto.Transaction
 		assetID := tx.AssetID()
 		asset, ok := v.assets[assetID]
 		if !ok {
-			asset, _ = v.ledger.GetAssetFromDB(assetID)
+			asset, _ = v.ledger.GetAsset(assetID)
 		}
 		if tx.GetType() != proto.TransactionType_Issue {
 			if asset == nil {
@@ -308,7 +307,7 @@ func (v *Verification) RemoveTxsInVerification(txs proto.Transactions) {
 func (v *Verification) fetchAccount(address account.Address) *balance.Balance {
 	account, ok := v.accounts[address.String()]
 	if !ok {
-		account, _ = v.ledger.GetBalanceFromDB(address)
+		account, _ = v.ledger.GetBalance(address)
 		v.accounts[address.String()] = account
 	}
 	return account
@@ -407,7 +406,7 @@ func (v *Verification) GetAsset(id uint32) *state.Asset {
 	defer v.rwAccount.Unlock()
 	asset, ok := v.assets[id]
 	if !ok {
-		asset, _ = v.ledger.GetAssetFromDB(id)
+		asset, _ = v.ledger.GetAsset(id)
 	}
 	return asset
 }
