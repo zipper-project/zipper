@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package node
+
+package zipper
 
 import (
 	"net/http"
@@ -36,48 +37,51 @@ import (
 // Node represents the blockchain zipper
 type Node struct {
 	bc  *blockchain.Blockchain
+	pm  *ProtoManager
 	cfg *config.Option
 }
 
 // NewNode returns node daemon instance
 func NewNode(cfgFile string) *Node {
 	if err := config.ReadInConfig(cfgFile); err != nil {
-		panicf("loadConfig error %v", err)
+		log.Panicf("loadConfig error %v", err)
 		return nil
 	}
 
 	return &Node{
-		bc: blockchain.NewBlockChain(),
+		bc: blockchain.NewBlockchain(),
+		pm: NewProtoManager(),
 	}
 }
 
 // Start starts the blockchain service
-func (l *Lcnd) Start() {
+func (node *Node) Start() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	abort := make(chan os.Signal, 1)
 	signal.Notify(abort, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGKILL)
 	go func() {
 		<-abort
-		l.bc.Stop()
+		node.bc.Stop()
 		os.Exit(0)
 	}()
 
-	log.New(l.cfg.LogFile)
-	log.SetLevel(l.cfg.LogLevel)
-	if l.cfg.ProfPort != "" {
+	log.New(node.cfg.LogFile)
+	log.SetLevel(node.cfg.LogLevel)
+
+	if node.cfg.ProfPort != "" {
 		go func() {
-			err := http.ListenAndServe(":"+l.cfg.ProfPort, nil)
+			err := http.ListenAndServe(":"+ node.cfg.ProfPort, nil)
 			if err != nil {
 				log.Errorf("Prof Server start error=%v", err)
 			} else {
-				log.Debugf("Prof Server start on port=%s", l.cfg.ProfPort)
+				log.Debugf("Prof Server start on port=%s", node.cfg.ProfPort)
 			}
 		}()
 	}
 
-	if l.cfg.CPUFile != "" {
-		cpuFile := l.cfg.CPUFile
+	if node.cfg.CPUFile != "" {
+		cpuFile := node.cfg.CPUFile
 		cpuProfile, _ := os.Create(cpuFile)
 		pprof.StartCPUProfile(cpuProfile)
 
@@ -91,5 +95,5 @@ func (l *Lcnd) Start() {
 		}()
 	}
 
-	l.bc.Start()
+	node.bc.Start()
 }

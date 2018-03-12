@@ -37,12 +37,15 @@ import (
 	"github.com/zipper-project/zipper/ledger/state"
 	"github.com/zipper-project/zipper/peer"
 	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/blockchain/protoManager"
 )
 
 // Blockchain is blockchain instance
 type Blockchain struct {
 	mu                 sync.Mutex
 	wg                 sync.WaitGroup
+
+	pm                 *protoManager.ProtoManager
 	currentBlockHeader *proto.BlockHeader
 	
 	ledger             *ledger.Ledger
@@ -88,7 +91,7 @@ func (bc *Blockchain) load() {
 }
 
 // NewBlockchain returns a fully initialised blockchain service using input data
-func NewBlockchain(ledger *ledger.Ledger) *Blockchain {
+func NewBlockchain() *Blockchain {
 	bc := &Blockchain{
 		mu:                 sync.Mutex{},
 		wg:                 sync.WaitGroup{},
@@ -101,15 +104,20 @@ func NewBlockchain(ledger *ledger.Ledger) *Blockchain {
 	bc.load()
 
 	log.Debugf("start: db.NewDB...")
-	chainDb = db.NewDB(config.DBConfig())
+	chainDb := db.NewDB(config.DBConfig())
 
 	log.Debugf("start: ledger.NewLedger...")
-	bc.ledger = ledger.NewLedger(chainDb, &ledger.Config{ExceptBlockDir: cfg.WriteExceptionBlockDir})
+	bc.ledger = ledger.NewLedger(chainDb, nil)
+
+	log.Debugf("start: regist block sync worker...")
+
 
 	log.Debugf("start: consenter.NewConsenter...")
-	bc.consenter := consenter.NewConsenter(config.ConsenterOption(), bc)
+	bc.consenter = consenter.NewConsenter(config.ConsenterOptions(), bc)
 
-	bc.validator = validator.NewVerification(config.ValidatorConfig(cfg.PluginDir), newLedger, consenter)
+	//bc.validator = validator.NewVerification(config.ValidatorConfig(cfg.PluginDir), bc.ledger, bc.consenter)
+	bc.pm = protoManager.NewProtoManager()
+	bc.pm.InitAndRegisterWorker()
 
 	log.Debugf("start: peer.NewPeer...")
 	bc.server = peer.NewServer(config.ServerOption())
@@ -117,8 +125,14 @@ func NewBlockchain(ledger *ledger.Ledger) *Blockchain {
 	return bc
 }
 
-// SetBlockchainConsenter sets the consenter of the blockchain
 func (bc *Blockchain) Start() {
+	bc.server.Start()
+	if bc.consenter.Name() == "noops" {
+		bc.StartServices()
+	}
+}
+
+func (bc *Blockchain) Stop() {
 	bc.server.Start()
 	if bc.consenter.Name() == "noops" {
 		bc.StartServices()
@@ -152,7 +166,7 @@ func (bc *Blockchain) GetNextBlockHash(h crypto.Hash) (crypto.Hash, error) {
 // GetAsset returns asset
 func (bc *Blockchain) GetAsset(id uint32) *state.Asset {
 	if bc.validator == nil {
-		b, _ := bc.ledger.GetAssetFromDB(id)
+		b, _ := bc.ledger.GetAsset(id)
 		return b
 	}
 	return bc.validator.GetAsset(id)
@@ -161,7 +175,7 @@ func (bc *Blockchain) GetAsset(id uint32) *state.Asset {
 // GetBalance returns balance
 func (bc *Blockchain) GetBalance(addr account.Address) *balance.Balance {
 	if bc.validator == nil {
-		b, _ := bc.ledger.GetBalanceFromDB(addr)
+		b, _ := bc.ledger.GetBalance(addr)
 		return b
 	}
 	return bc.validator.GetBalance(addr)
@@ -190,15 +204,6 @@ func (bc *Blockchain) StartServices() {
 	bc.started = true
 }
 
-func (bc *Blockchain) StartServices() {
-	// start consesnus
-	bc.StartConsensusService()
-	// start txpool
-	bc.StartTxPoolService()
-	log.Debug("BlockChain Service start")
-	bc.started = true
-}
-
 func (bc *Blockchain) Started() bool {
 	return bc.started
 }
@@ -210,6 +215,8 @@ func (bc *Blockchain) StartConsensusService() {
 		for {
 			select {
 			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
+				_ = broadcastConsensusData
+				//TODO
 			case commitedTxs := <-bc.consenter.OutputTxsChannel():
 				//add lo
 				log.Infof("Outputs StartConsensusService len=%d", len(commitedTxs.Txs))
@@ -250,7 +257,7 @@ func (bc *Blockchain) StartConsensusService() {
 func (bc *Blockchain) processConsensusOutput(output *consensus.OutputTxs) {
 	blk := bc.GenerateBlock(output.Txs, output.Time)
 	if blk.Height() == output.Height {
-		bc.pm.Relay(blk)
+		bc.Relay(blk)
 	}
 }
 
@@ -284,7 +291,7 @@ func (bc *Blockchain) ProcessBlock(blk *proto.Block, flag bool) bool {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	log.Debugf("block previoushash %s, currentblockhash %s,len %d", blk.PreviousHash(), bc.CurrentBlockHash(), len(blk.Transactions))
-	if blk.PreviousHash() == bc.CurrentBlockHash() {
+	if blk.PreviousHash() == bc.CurrentBlockHash().String() {
 		bc.ledger.AppendBlock(blk, flag)
 		log.Infof("New Block  %s, height: %d Transaction Number: %d", blk.Hash(), blk.Height(), len(blk.Transactions))
 		bc.currentBlockHeader = blk.Header
@@ -320,39 +327,39 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 	return blk
 }
 
-func (bc *Blockchain) RelayTx(inv proto.IInventory) {
+func (bc *Blockchain) Relay(inv proto.IInventory) {
 	var (
-		msg       *proto.Msg
-		invMsg := &proto.GetInvMsg{}
+		//msg       *proto.Message
+		invMsg = &proto.GetInvMsg{}
 	)
 	switch inv.(type) {
-	case *types.Transaction:
+	case *proto.Transaction:
 		tx := inv.(*proto.Transaction)
-		if pm.filter.TestAndAdd(tx.Serialize()) {
-			log.Debugf("Bloom Test is true, txHash: %+v", tx.Hash())
-			return
-		}
-		if pm.Blockchain.ProcessTransaction(&tx, true) {
+		//if pm.filter.TestAndAdd(tx.Serialize()) {
+		//	log.Debugf("Bloom Test is true, txHash: %+v", tx.Hash())
+		//	return
+		//}
+		if bc.ProcessTransaction(tx, true) {
 			log.Debugf("ProcessTransaction, tx_hash: %+v", tx.Hash())
-			inventory.Type = proto.InvType_transaction
-			inventory.Hashes = []crypto.Hash{inv.Hash()}
+			invMsg.Type = proto.InvType_transaction
+			//invMsg.Hashs = []crypto.Hash{inv.Hash()}
 			//msg = proto.NewMsg(txMsg, inv.Serialize())
 		}
-	case *types.Block:
-		block := inv.(*types.Block)
-		if pm.filter.TestAndAdd(block.Serialize()) {
-			log.Debugf("Bloom Test is true, BlockHash: %+v", block.Hash())
-			return
-		}
+	case *proto.Block:
+		block := inv.(*proto.Block)
+		//if pm.filter.TestAndAdd(block.Serialize()) {
+		//	log.Debugf("Bloom Test is true, BlockHash: %+v", block.Hash())
+		//	return
+		//}
 
-		if pm.Blockchain.ProcessBlock(block, true) {
-			log.Debugf("Relay inventory %v", inventory)
-			inventory.Type = proto.InvType_block
-			inventory.Hashes = []crypto.Hash{inv.Hash()}
+		if bc.ProcessBlock(block, true) {
+			log.Debugf("Relay inventory %v", inv)
+			invMsg.Type = proto.InvType_block
+			//invMsg.Hashs = inv.Hash().String()
 			//msg = p2p.NewMsg(invMsg, utils.Serialize(inventory))
 		}
 	}
-	if msg != nil {
-		bc.server.Broadcast(msg, peer.ALL)
-	}
+	//if msg != nil {
+	//	bc.server.Broadcast(msg, peer.ALL)
+	//}
 }

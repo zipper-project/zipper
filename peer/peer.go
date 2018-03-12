@@ -136,7 +136,7 @@ func (peer *Peer) SendMsg(msg *proto.Message) error {
 	case peer.sendChannel <- msg:
 		return nil
 	default:
-		return fmt.Errorf("Peer %s(%s->%s) conn send channel fully", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
+		return fmt.Errorf("Peer %s(%s->%s) conn send channel fully ", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
 	}
 }
 

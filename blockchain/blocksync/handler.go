@@ -23,6 +23,8 @@ func (worker *SyncWorker) VmJob(data interface{}) (interface{}, error) {
 	workerData := data.(types.WorkerData)
 	msg := workerData.GetMsg()
 	switch proto.MsgType(msg.Header.MsgID) {
+	case proto.MsgType_BC_OnStatusMSg:
+		worker.OnStatus(workerData)
 	case proto.MsgType_BC_GetBlocksMsg:
 		worker.OnGetBlocks(workerData)
 	case proto.MsgType_BC_GetInvMsg:
@@ -58,6 +60,10 @@ func SetSyncWorkers(workerNums int, ledger *ledger.Ledger, bc *blockchain.Blockc
 	}
 
 	return txWorkers
+}
+
+func (worker *SyncWorker) OnStatus(workerData types.WorkerData) {
+
 }
 
 func (worker *SyncWorker) OnGetBlocks(workerData types.WorkerData) {

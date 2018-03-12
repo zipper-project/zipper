@@ -11,6 +11,7 @@ enum MsgType {
     BC_GetDataMsg = 2;
     BC_OnBlockMsg = 3;
     BC_OnTransactionMsg = 4;
+    BC_OnStatusMSg = 5;
 }
 
 message GetBlocksMsg {

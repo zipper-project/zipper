@@ -1,18 +1,19 @@
-package zipper
+package protoManager
 
 import (
-	"github.com/zipper-project/zipper/common/mpool"
 	"sync"
 	"fmt"
+	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/peer"
 	"github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/types"
+	"github.com/zipper-project/zipper/params"
+	"github.com/zipper-project/zipper/blockchain/blocksync"
 )
 
 type ProtoManager struct {
 	sync.Mutex
 	wm map[uint32]*mpool.VirtualMachine
-	peer.Peer
 }
 
 func NewProtoManager() *ProtoManager {
@@ -41,3 +42,7 @@ func (pm *ProtoManager) Handle(sendPeer *peer.Peer, msg *proto.Message) error {
 	return err
 }
 
+func (pm *ProtoManager) InitAndRegisterWorker(ledger ) {
+	pm.RegisterWorker(params.BlockSyncIdx, blocksync.NewSyncWorker())
+
+}
