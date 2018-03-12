@@ -21,9 +21,8 @@ package commands
 import (
 	"fmt"
 	"os"
-
 	"github.com/spf13/cobra"
-	"github.com/zipper-project/zipper/zipper"
+	"github.com/zipper-project/zipper/node"
 )
 
 var (
@@ -38,7 +37,7 @@ var RootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		zip := zipper.NewZipper(cfgFile)
+		zip := node.NewNode(cfgFile)
 		zip.Start()
 	},
 }

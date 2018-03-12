@@ -1,14 +1,13 @@
 package protoManager
 
 import (
-	"sync"
 	"fmt"
+	"sync"
+
 	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/peer"
 	"github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/types"
-	"github.com/zipper-project/zipper/params"
-	"github.com/zipper-project/zipper/blockchain/blocksync"
 )
 
 type ProtoManager struct {
@@ -42,7 +41,7 @@ func (pm *ProtoManager) Handle(sendPeer *peer.Peer, msg *proto.Message) error {
 	return err
 }
 
-func (pm *ProtoManager) InitAndRegisterWorker(ledger ) {
-	pm.RegisterWorker(params.BlockSyncIdx, blocksync.NewSyncWorker())
+func (pm *ProtoManager) InitAndRegisterWorker() {
+	//pm.RegisterWorker(params.BlockSyncIdx, blocksync.NewSyncWorker())
 
 }

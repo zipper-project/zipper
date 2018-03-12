@@ -16,20 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-package zipper
+package node
 
 import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime"
 	"runtime/pprof"
 
 	"syscall"
 
 	"github.com/zipper-project/zipper/blockchain"
+	"github.com/zipper-project/zipper/blockchain/protoManager"
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/config"
 )
@@ -37,7 +36,6 @@ import (
 // Node represents the blockchain zipper
 type Node struct {
 	bc  *blockchain.Blockchain
-	pm  *ProtoManager
 	cfg *config.Option
 }
 
@@ -47,17 +45,14 @@ func NewNode(cfgFile string) *Node {
 		log.Panicf("loadConfig error %v", err)
 		return nil
 	}
-
+	pm := protoManager.NewProtoManager()
 	return &Node{
-		bc: blockchain.NewBlockchain(),
-		pm: NewProtoManager(),
+		bc: blockchain.NewBlockchain(pm),
 	}
 }
 
 // Start starts the blockchain service
 func (node *Node) Start() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	abort := make(chan os.Signal, 1)
 	signal.Notify(abort, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGKILL)
 	go func() {
@@ -71,7 +66,7 @@ func (node *Node) Start() {
 
 	if node.cfg.ProfPort != "" {
 		go func() {
-			err := http.ListenAndServe(":"+ node.cfg.ProfPort, nil)
+			err := http.ListenAndServe(":"+node.cfg.ProfPort, nil)
 			if err != nil {
 				log.Errorf("Prof Server start error=%v", err)
 			} else {

@@ -28,7 +28,7 @@ var versionCmd = &cobra.Command{
 	Short: "Show current version",
 	Long:  `Show current version`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
+		// TODO
 	},
 }
 

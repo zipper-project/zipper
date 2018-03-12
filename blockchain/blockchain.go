@@ -43,28 +43,32 @@ import (
 
 // Blockchain is blockchain instance
 type Blockchain struct {
-	mu                 sync.Mutex
-	wg                 sync.WaitGroup
+	mu sync.Mutex
+	wg sync.WaitGroup
+
 	currentBlockHeader *proto.BlockHeader
 
+	filter *bloom.BloomFilter
+
+	//ledger
 	ledger *ledger.Ledger
+
 	// validator
 	validator validator.Validator
+
 	// consensus
 	consenter consensus.Consenter
+
 	// server
 	server *peer.Server
 
 	quitCh chan bool
-	txCh   chan *proto.Transaction
-	blkCh  chan *proto.Block
 
 	orphans *list.List
+
 	// 0 respresents sync block, 1 respresents sync done
 	synced  bool
 	started bool
-
-	filter *bloom.BloomFilter
 }
 
 var (
@@ -74,7 +78,6 @@ var (
 
 // load loads local blockchain data
 func (bc *Blockchain) load() {
-
 	t := time.Now()
 	bc.ledger.VerifyChain()
 	delay := time.Since(t)
@@ -96,42 +99,91 @@ func (bc *Blockchain) load() {
 }
 
 // NewBlockchain returns a fully initialised blockchain service using input data
-func NewBlockchain() *Blockchain {
+func NewBlockchain(pm peer.IProtocolManager) *Blockchain {
 	bc := &Blockchain{
 		mu:                 sync.Mutex{},
 		wg:                 sync.WaitGroup{},
-		quitCh:             make(chan bool),
-		txCh:               make(chan *proto.Transaction, 10000),
-		blkCh:              make(chan *proto.Block, 10),
 		currentBlockHeader: new(proto.BlockHeader),
-		orphans:            list.New(),
 		filter:             bloom.NewWithEstimates(filterN, falsePositive),
+		orphans:            list.New(),
+		quitCh:             make(chan bool),
 	}
-	bc.load()
 
 	log.Debugf("start: db.NewDB...")
 	chainDb := db.NewDB(config.DBConfig())
 
 	log.Debugf("start: ledger.NewLedger...")
 	bc.ledger = ledger.NewLedger(chainDb)
+	bc.load()
 
 	log.Debugf("start: consenter.NewConsenter...")
 	bc.consenter = consenter.NewConsenter(config.ConsenterOptions(), bc)
 
 	bc.validator = validator.NewVerification(config.ValidatorConfig(), bc.ledger, bc.consenter)
 
-	log.Debugf("start: peer.NewPeer...")
-	bc.server = peer.NewServer(config.ServerOption())
-
+	log.Debugf("start: peer.NewServer...")
+	bc.server = peer.NewServer(config.ServerOption(), pm)
 	return bc
 }
 
-// SetBlockchainConsenter sets the consenter of the blockchain
 func (bc *Blockchain) Start() {
-	bc.server.Start()
 	if bc.consenter.Name() == "noops" {
 		bc.StartServices()
 	}
+	go bc.server.Start()
+	go func() {
+		for {
+			select {
+			case <-bc.quitCh:
+				return
+			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
+				//TODO
+				header := &p2p.Header{}
+				header.ProtoID = 1
+				header.MsgID = 1
+				msg := p2p.NewMessage(header, broadcastConsensusData.Payload)
+				bc.server.Broadcast(msg, peer.VP)
+			case commitedTxs := <-bc.consenter.OutputTxsChannel():
+				//add lo
+				log.Infof("Outputs StartConsensusService len=%d", len(commitedTxs.Txs))
+
+				height, _ := bc.ledger.Height()
+				height++
+				if commitedTxs.Height == height {
+					if !bc.synced {
+						bc.synced = true
+					}
+					bc.processConsensusOutput(commitedTxs)
+				} else if commitedTxs.Height > height {
+					//orphan
+					bc.orphans.PushBack(commitedTxs)
+					for elem := bc.orphans.Front(); elem != nil; elem = elem.Next() {
+						ocommitedTxs := elem.Value.(*consensus.OutputTxs)
+						if ocommitedTxs.Height < height {
+							bc.orphans.Remove(elem)
+						} else if ocommitedTxs.Height == height {
+							bc.orphans.Remove(elem)
+							bc.processConsensusOutput(ocommitedTxs)
+							height++
+						} else {
+							break
+						}
+					}
+					if bc.orphans.Len() > 100 {
+						bc.orphans.Remove(bc.orphans.Front())
+					}
+				} /*else if bc.synced {
+					log.Panicf("Height %d already exist in ledger", commitedTxs.Height)
+				}*/
+			}
+		}
+	}()
+}
+
+func (bc *Blockchain) Stop() {
+	//TODO
+	close(bc.quitCh)
+	bc.server.Stop()
 }
 
 // CurrentHeight returns current heigt of the current block
@@ -203,50 +255,13 @@ func (bc *Blockchain) Started() bool {
 	return bc.started
 }
 
+func (bc *Blockchain) Synced() bool {
+	return bc.synced
+}
+
 // StartConsensusService starts consensus service
 func (bc *Blockchain) StartConsensusService() {
 	go bc.consenter.Start()
-	go func() {
-		for {
-			select {
-			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
-				_ = broadcastConsensusData
-				//TODO
-			case commitedTxs := <-bc.consenter.OutputTxsChannel():
-				//add lo
-				log.Infof("Outputs StartConsensusService len=%d", len(commitedTxs.Txs))
-
-				height, _ := bc.ledger.Height()
-				height++
-				if commitedTxs.Height == height {
-					if !bc.synced {
-						bc.synced = true
-					}
-					bc.processConsensusOutput(commitedTxs)
-				} else if commitedTxs.Height > height {
-					//orphan
-					bc.orphans.PushBack(commitedTxs)
-					for elem := bc.orphans.Front(); elem != nil; elem = elem.Next() {
-						ocommitedTxs := elem.Value.(*consensus.OutputTxs)
-						if ocommitedTxs.Height < height {
-							bc.orphans.Remove(elem)
-						} else if ocommitedTxs.Height == height {
-							bc.orphans.Remove(elem)
-							bc.processConsensusOutput(ocommitedTxs)
-							height++
-						} else {
-							break
-						}
-					}
-					if bc.orphans.Len() > 100 {
-						bc.orphans.Remove(bc.orphans.Front())
-					}
-				} /*else if bc.synced {
-					log.Panicf("Height %d already exist in ledger", commitedTxs.Height)
-				}*/
-			}
-		}
-	}()
 }
 
 func (bc *Blockchain) processConsensusOutput(output *consensus.OutputTxs) {
