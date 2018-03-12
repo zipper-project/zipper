@@ -7,6 +7,14 @@ type IMsg interface {
 	UnmarshalMsg(data []byte) error
 }
 
+func (m *StatusMsg) MarshalMsg() ([]byte, error) {
+	return proto.Marshal(m)
+}
+
+func (m *StatusMsg) UnmarshalMsg(data []byte) error {
+	return proto.Unmarshal(data, m)
+}
+
 func (m *GetBlocksMsg) MarshalMsg() ([]byte, error) {
 	return proto.Marshal(m)
 }

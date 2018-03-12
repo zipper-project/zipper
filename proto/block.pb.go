@@ -13,6 +13,7 @@ It has these top-level messages:
 	BlockHeader
 	Block
 	GetBlocksMsg
+	StatusMsg
 	GetInvMsg
 	OnBlockMsg
 	OnTransactionMsg

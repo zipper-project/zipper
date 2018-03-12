@@ -12,6 +12,8 @@ import (
 	msgProto "github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/types"
+	"github.com/yuin/gopher-lua/pm"
+	"golang.org/x/tools/go/gcimporter15/testdata"
 )
 
 type SyncWorker struct {
@@ -64,7 +66,26 @@ func SetSyncWorkers(workerNums int, ledger *ledger.Ledger, bc *blockchain.Blockc
 }
 
 func (worker *SyncWorker) OnStatus(workerData types.WorkerData) {
+	statusMsg := proto.StatusMsg{}
+	if err := statusMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+		log.Errorf("Get invalid StatusMsg: %+v", workerData.GetMsg().Payload)
+		return
+	}
 
+	if worker.bc.CurrentHeight() < statusMsg.StartHeight {
+		if statusMsg.StartHeight > worker.expectedHeight {
+			worker.expectedHeight = statusMsg.StartHeight
+		}
+
+		getBlocksMsg := &proto.GetBlocksMsg{
+			LocatorHashes: []string{worker.bc.CurrentBlockHash().String()},
+			HashStop:      crypto.Hash{}.String(),
+		}
+
+		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getBlocksMsg)
+	} else if !worker.bc.Started() {
+		worker.bc.Start()
+	}
 }
 
 func (worker *SyncWorker) OnGetBlocks(workerData types.WorkerData) {
