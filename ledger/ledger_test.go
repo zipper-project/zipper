@@ -45,13 +45,12 @@ var (
 func TestExecuteIssueTx(t *testing.T) {
 	vm.VMConf = vm.DefaultConfig()
 	testDb := db.NewDB(db.DefaultConfig())
-	li := NewLedger(testDb, &Config{"file"})
+	li := NewLedger(testDb)
 	defer os.RemoveAll("/tmp/rocksdb-test")
 	//config.ChainID = []byte{byte(0)}
 
 	issueTxKeypair, _ := crypto.GenerateKey()
 	addr := account.PublicKeyToAddress(*issueTxKeypair.Public())
-
 	issueTx := pb.NewTransaction(account.NewChainCoordinate([]byte{byte(0)}),
 		account.NewChainCoordinate([]byte{byte(0)}),
 		pb.TransactionType_Issue,
@@ -68,12 +67,11 @@ func TestExecuteIssueTx(t *testing.T) {
 	signature, _ := issueTxKeypair.Sign(issueTx.Hash().Bytes())
 	issueTx.GetHeader().Signature = signature.Bytes()
 
-	li.AppendBlock(&pb.Block{Transactions: []*pb.Transaction{issueTx}}, true)
+	li.AppendBlock(&pb.Block{Transactions: []*pb.Transaction{issueTx},
+		Header: &pb.BlockHeader{}}, true)
 
 	sender := issueTx.Sender()
-	t.Log(sender.String())
-	b, _ := li.GetBalance(sender)
-	t.Log(b.Amounts[0])
+	t.Logf("sender address: %s \n", sender.String())
 	t.Log(li.GetBalance(sender))
 	t.Log(li.GetBalance(issueReciepent))
 }

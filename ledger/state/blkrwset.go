@@ -108,12 +108,14 @@ func (blk *BLKRWSet) GetChainCodeStateByRange(chaincodeAddr string, startKey str
 	if len(endKey) > 0 {
 		dbValues := blk.dbHandler.GetByRange(blk.chainCodeCF, []byte(ckeyStart), []byte(ckeyEnd))
 		for _, kv := range dbValues {
-			ret[string(kv.Key)] = kv.Value
+			_, key := DecodeCompositeKey(string(kv.Key))
+			ret[key] = kv.Value
 		}
 	} else {
 		dbValues := blk.dbHandler.GetByPrefix(blk.chainCodeCF, []byte(ckeyStart))
 		for _, kv := range dbValues {
-			ret[string(kv.Key)] = kv.Value
+			_, key := DecodeCompositeKey(string(kv.Key))
+			ret[key] = kv.Value
 		}
 	}
 
@@ -121,28 +123,29 @@ func (blk *BLKRWSet) GetChainCodeStateByRange(chaincodeAddr string, startKey str
 		cache := treap.NewImmutable()
 		for ckey, kvr := range blk.chainCodeSet.Reads {
 			if strings.HasPrefix(ckey, chaincodePrefix) {
-				cache.Put([]byte(ckey), kvr.Value)
+				cache = cache.Put([]byte(ckey), kvr.Value)
 			}
 		}
 		for ckey, kvw := range blk.chainCodeSet.Writes {
 			if strings.HasPrefix(ckey, chaincodePrefix) {
-				cache.Put([]byte(ckey), kvw.Value)
+				cache = cache.Put([]byte(ckey), kvw.Value)
 			}
 		}
-
 		if len(endKey) > 0 {
 			for iter := cache.Iterator([]byte(ckeyStart), []byte(ckeyEnd)); iter.Next(); {
 				if val := iter.Value(); val != nil {
-					ret[string(iter.Key())] = val
+					_, key := DecodeCompositeKey(string(iter.Key()))
+					ret[key] = val
 				}
 			}
 		} else {
-			for iter := cache.Iterator([]byte(startKey), nil); iter.Next(); {
-				if !bytes.HasPrefix(iter.Key(), []byte(startKey)) {
+			for iter := cache.Iterator([]byte(ckeyStart), nil); iter.Next(); {
+				if !bytes.HasPrefix(iter.Key(), []byte(ckeyStart)) {
 					break
 				}
 				if val := iter.Value(); val != nil {
-					ret[string(iter.Key())] = val
+					_, key := DecodeCompositeKey(string(iter.Key()))
+					ret[key] = val
 				}
 			}
 		}
@@ -185,12 +188,12 @@ func (blk *BLKRWSet) GetBalanceState(addr string, assetID uint32, committed bool
 			if kvw.IsDelete {
 				return 0, nil
 			}
-			utils.Deserialize(kvw.Value, amount)
+			utils.Deserialize(kvw.Value, &amount)
 			return amount, nil
 		}
 
 		if kvr, ok := blk.balanceSet.Reads[ckey]; ok {
-			utils.Deserialize(kvr.Value, amount)
+			utils.Deserialize(kvr.Value, &amount)
 			return amount, nil
 		}
 	}
@@ -198,7 +201,7 @@ func (blk *BLKRWSet) GetBalanceState(addr string, assetID uint32, committed bool
 	if err != nil {
 		return 0, err
 	}
-	utils.Deserialize(value, amount)
+	utils.Deserialize(value, &amount)
 	return amount, nil
 }
 
@@ -217,12 +220,12 @@ func (blk *BLKRWSet) GetBalanceStates(addr string, committed bool) (map[uint32]i
 		cache := treap.NewImmutable()
 		for ckey, kvr := range blk.balanceSet.Reads {
 			if strings.HasPrefix(ckey, prefix) {
-				cache.Put([]byte(ckey), kvr.Value)
+				cache = cache.Put([]byte(ckey), kvr.Value)
 			}
 		}
 		for ckey, kvw := range blk.balanceSet.Writes {
 			if strings.HasPrefix(ckey, prefix) {
-				cache.Put([]byte(ckey), kvw.Value)
+				cache = cache.Put([]byte(ckey), kvw.Value)
 			}
 		}
 
@@ -239,11 +242,16 @@ func (blk *BLKRWSet) GetBalanceStates(addr string, committed bool) (map[uint32]i
 	balances := make(map[uint32]int64)
 	for k, v := range ret {
 		if v != nil {
-			assetID, err := strconv.ParseUint(k, 10, 32)
+			_, key := DecodeCompositeKey(k)
+			assetID, err := strconv.ParseUint(strings.TrimSuffix(key, assetIDKeySuffix), 10, 32)
 			if err != nil {
 				return nil, err
 			}
-			utils.Deserialize(v, balances[uint32(assetID)])
+			var amount int64
+			if err := utils.Deserialize(v, &amount); err != nil {
+				return nil, err
+			}
+			balances[uint32(assetID)] = amount
 		}
 	}
 	return balances, nil
@@ -326,12 +334,12 @@ func (blk *BLKRWSet) GetAssetStates(committed bool) (map[uint32]*Asset, error) {
 		cache := treap.NewImmutable()
 		for ckey, kvr := range blk.assetSet.Reads {
 			if strings.HasPrefix(ckey, prefix) {
-				cache.Put([]byte(ckey), kvr.Value)
+				cache = cache.Put([]byte(ckey), kvr.Value)
 			}
 		}
 		for ckey, kvw := range blk.assetSet.Writes {
 			if strings.HasPrefix(ckey, prefix) {
-				cache.Put([]byte(ckey), kvw.Value)
+				cache = cache.Put([]byte(ckey), kvw.Value)
 			}
 		}
 
@@ -345,10 +353,10 @@ func (blk *BLKRWSet) GetAssetStates(committed bool) (map[uint32]*Asset, error) {
 		}
 	}
 
-	assetInfo := &Asset{}
 	assets := make(map[uint32]*Asset)
 	for _, v := range ret {
 		if v != nil {
+			assetInfo := &Asset{}
 			if err := utils.Deserialize(v, assetInfo); err != nil {
 				return nil, err
 			}

@@ -46,11 +46,15 @@ type ContractData struct {
 
 func NewContractData(tx *proto.Transaction) *ContractData {
 	cd := new(ContractData)
-	cd.ContractCode = string(tx.GetContractSpec().Code)
-	cd.ContractAddr = hex.EncodeToString(tx.GetContractSpec().Addr)
-	cd.ContractParams = tx.GetContractSpec().Params
-	cd.Transaction = tx
+	if tx.GetType() == proto.TransactionType_ContractInvoke ||
+		tx.GetType() == proto.TransactionType_JSContractInit ||
+		tx.GetType() == proto.TransactionType_LuaContractInit {
+		cd.ContractCode = string(tx.GetContractSpec().Code)
+		cd.ContractAddr = hex.EncodeToString(tx.GetContractSpec().Addr)
+		cd.ContractParams = tx.GetContractSpec().Params
+	}
 
+	cd.Transaction = tx
 	return cd
 }
 
@@ -265,7 +269,6 @@ func (p *WorkerProc) CCallCommit() error {
 		if txOP == nil {
 			break
 		}
-
 		// call parent proc for real transfer
 		if _, err := p.ccall("AddTransfer", txOP.from, txOP.to, txOP.id, txOP.amount, txOP.fee); err != nil {
 			return err

@@ -181,8 +181,8 @@ func (tx *TXRWSet) GetCurrentBlockHeight() uint32 {
 func (tx *TXRWSet) AddTransfer(fromAddr, toAddr string, assetID uint32, amount, fee int64) error {
 	log.Debugf("AddTransfer from=[%s], to=[%s], assetID=[%d], amount=[%s], fee=[%s]", fromAddr, toAddr, assetID, amount, fee)
 	ttx := pb.NewTransaction(
-		tx.currentTx.FromChain(),
-		tx.currentTx.ToChain(),
+		tx.currentTx.GetHeader().GetFromChain(),
+		tx.currentTx.GetHeader().GetToChain(),
 		pb.TransactionType_Atomic,
 		tx.currentTx.GetHeader().GetNonce(),
 		account.HexToAddress(fromAddr),
