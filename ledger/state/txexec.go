@@ -28,8 +28,8 @@ import (
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/common/db"
 	"github.com/zipper-project/zipper/common/log"
-	"github.com/zipper-project/zipper/config"
 	"github.com/zipper-project/zipper/ledger/balance"
+	"github.com/zipper-project/zipper/params"
 	pb "github.com/zipper-project/zipper/proto"
 )
 
@@ -38,8 +38,8 @@ var permissionPrefix = "permission."
 func (tx *TXRWSet) verifyPermission(key string) error {
 	var dataAdmin []byte
 	var err error
-	if key == config.AdminKey || key == config.GlobalContractKey {
-		dataAdmin, err = tx.GetChainCodeState(config.GlobalStateKey, config.AdminKey, false)
+	if key == params.AdminKey || key == params.GlobalContractKey {
+		dataAdmin, err = tx.GetChainCodeState(params.GlobalStateKey, params.AdminKey, false)
 		if err != nil {
 			return err
 		}
@@ -51,13 +51,13 @@ func (tx *TXRWSet) verifyPermission(key string) error {
 			permissionKey = permissionPrefix + key
 		}
 
-		dataAdmin, err = tx.GetChainCodeState(config.GlobalStateKey, permissionKey, false)
+		dataAdmin, err = tx.GetChainCodeState(params.GlobalStateKey, permissionKey, false)
 		if err != nil {
 			return err
 		}
 
 		if len(dataAdmin) == 0 {
-			dataAdmin, err = tx.GetChainCodeState(config.GlobalStateKey, config.AdminKey, false)
+			dataAdmin, err = tx.GetChainCodeState(params.GlobalStateKey, params.AdminKey, false)
 			if err != nil {
 				return err
 			}
@@ -83,7 +83,7 @@ func (tx *TXRWSet) verifyPermission(key string) error {
 
 func (tx *TXRWSet) GetGlobalState(key string) ([]byte, error) {
 	log.Debugf("GetGlobalState key=[%s]", key)
-	return tx.GetChainCodeState(config.GlobalStateKey, key, false)
+	return tx.GetChainCodeState(params.GlobalStateKey, key, false)
 }
 
 func (tx *TXRWSet) PutGlobalState(key string, value []byte) error {
@@ -91,7 +91,7 @@ func (tx *TXRWSet) PutGlobalState(key string, value []byte) error {
 		return err
 	}
 	log.Debugf("SetGlobalState key=[%s], value=[%#v]", key, value)
-	return tx.SetChainCodeState(config.GlobalStateKey, key, value)
+	return tx.SetChainCodeState(params.GlobalStateKey, key, value)
 }
 
 func (tx *TXRWSet) DelGlobalState(key string) error {
@@ -99,7 +99,7 @@ func (tx *TXRWSet) DelGlobalState(key string) error {
 		return err
 	}
 	log.Debugf("DelGlobalState key=[%s]", key)
-	tx.DelChainCodeState(config.GlobalStateKey, key)
+	tx.DelChainCodeState(params.GlobalStateKey, key)
 	return nil
 }
 

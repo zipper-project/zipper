@@ -47,7 +47,6 @@ type Validator interface {
 	GetTransactionByHash(txHash crypto.Hash) (*proto.Transaction, bool)
 	GetAsset(id uint32) *state.Asset
 	GetBalance(addr account.Address) *balance.Balance
-	SecurityPluginDir() string
 }
 
 type Verification struct {

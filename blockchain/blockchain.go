@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/willf/bloom"
 	"github.com/zipper-project/zipper/account"
 	"github.com/zipper-project/zipper/blockchain/validator"
 	"github.com/zipper-project/zipper/common/crypto"
@@ -36,27 +37,23 @@ import (
 	"github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/ledger/state"
 	"github.com/zipper-project/zipper/peer"
+	p2p "github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/blockchain/protoManager"
 )
 
 // Blockchain is blockchain instance
 type Blockchain struct {
 	mu                 sync.Mutex
 	wg                 sync.WaitGroup
-
-	pm                 *protoManager.ProtoManager
 	currentBlockHeader *proto.BlockHeader
-	
-	ledger             *ledger.Ledger
+
+	ledger *ledger.Ledger
 	// validator
 	validator validator.Validator
 	// consensus
 	consenter consensus.Consenter
 	// server
-	server             *peer.Server
-
-	started bool
+	server *peer.Server
 
 	quitCh chan bool
 	txCh   chan *proto.Transaction
@@ -64,8 +61,16 @@ type Blockchain struct {
 
 	orphans *list.List
 	// 0 respresents sync block, 1 respresents sync done
-	synced bool
+	synced  bool
+	started bool
+
+	filter *bloom.BloomFilter
 }
+
+var (
+	filterN       uint = 1000000
+	falsePositive      = 0.000001
+)
 
 // load loads local blockchain data
 func (bc *Blockchain) load() {
@@ -100,6 +105,7 @@ func NewBlockchain() *Blockchain {
 		blkCh:              make(chan *proto.Block, 10),
 		currentBlockHeader: new(proto.BlockHeader),
 		orphans:            list.New(),
+		filter:             bloom.NewWithEstimates(filterN, falsePositive),
 	}
 	bc.load()
 
@@ -107,32 +113,21 @@ func NewBlockchain() *Blockchain {
 	chainDb := db.NewDB(config.DBConfig())
 
 	log.Debugf("start: ledger.NewLedger...")
-	bc.ledger = ledger.NewLedger(chainDb, nil)
-
-	log.Debugf("start: regist block sync worker...")
-
+	bc.ledger = ledger.NewLedger(chainDb)
 
 	log.Debugf("start: consenter.NewConsenter...")
 	bc.consenter = consenter.NewConsenter(config.ConsenterOptions(), bc)
 
-	//bc.validator = validator.NewVerification(config.ValidatorConfig(cfg.PluginDir), bc.ledger, bc.consenter)
-	bc.pm = protoManager.NewProtoManager()
-	bc.pm.InitAndRegisterWorker()
+	bc.validator = validator.NewVerification(config.ValidatorConfig(), bc.ledger, bc.consenter)
 
 	log.Debugf("start: peer.NewPeer...")
 	bc.server = peer.NewServer(config.ServerOption())
-	
+
 	return bc
 }
 
+// SetBlockchainConsenter sets the consenter of the blockchain
 func (bc *Blockchain) Start() {
-	bc.server.Start()
-	if bc.consenter.Name() == "noops" {
-		bc.StartServices()
-	}
-}
-
-func (bc *Blockchain) Stop() {
 	bc.server.Start()
 	if bc.consenter.Name() == "noops" {
 		bc.StartServices()
@@ -316,9 +311,10 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 	var (
 		// default value is empty hash
 		merkleRootHash crypto.Hash
+		stateRootHash  crypto.Hash
 	)
 
-	blk := proto.NewBlock(bc.currentBlockHeader.Hash(),
+	blk := proto.NewBlock(bc.currentBlockHeader.Hash(), stateRootHash,
 		createTime, bc.currentBlockHeader.Height+1,
 		uint32(100),
 		merkleRootHash,
@@ -329,37 +325,47 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 
 func (bc *Blockchain) Relay(inv proto.IInventory) {
 	var (
-		//msg       *proto.Message
+		msg    *p2p.Message
 		invMsg = &proto.GetInvMsg{}
 	)
 	switch inv.(type) {
 	case *proto.Transaction:
 		tx := inv.(*proto.Transaction)
-		//if pm.filter.TestAndAdd(tx.Serialize()) {
-		//	log.Debugf("Bloom Test is true, txHash: %+v", tx.Hash())
-		//	return
-		//}
+		if bc.filter.TestAndAdd(tx.Serialize()) {
+			log.Debugf("Bloom Test is true, txHash: %+v", tx.Hash())
+			return
+		}
 		if bc.ProcessTransaction(tx, true) {
 			log.Debugf("ProcessTransaction, tx_hash: %+v", tx.Hash())
 			invMsg.Type = proto.InvType_transaction
-			//invMsg.Hashs = []crypto.Hash{inv.Hash()}
-			//msg = proto.NewMsg(txMsg, inv.Serialize())
+			invMsg.Hashs = []string{inv.Hash().String()}
+
+			header := &p2p.Header{}
+			header.ProtoID = 1
+			header.MsgID = 1
+			imsgByte, _ := invMsg.MarshalMsg()
+			msg = p2p.NewMessage(header, imsgByte)
 		}
 	case *proto.Block:
 		block := inv.(*proto.Block)
-		//if pm.filter.TestAndAdd(block.Serialize()) {
-		//	log.Debugf("Bloom Test is true, BlockHash: %+v", block.Hash())
-		//	return
-		//}
+		if bc.filter.TestAndAdd(block.Serialize()) {
+			log.Debugf("Bloom Test is true, BlockHash: %+v", block.Hash())
+			return
+		}
 
 		if bc.ProcessBlock(block, true) {
 			log.Debugf("Relay inventory %v", inv)
 			invMsg.Type = proto.InvType_block
-			//invMsg.Hashs = inv.Hash().String()
-			//msg = p2p.NewMsg(invMsg, utils.Serialize(inventory))
+			invMsg.Hashs = []string{inv.Hash().String()}
+
+			header := &p2p.Header{}
+			header.ProtoID = 1
+			header.MsgID = 1
+			imsgByte, _ := invMsg.MarshalMsg()
+			msg = p2p.NewMessage(header, imsgByte)
 		}
 	}
-	//if msg != nil {
-	//	bc.server.Broadcast(msg, peer.ALL)
-	//}
+	if msg != nil {
+		bc.server.Broadcast(msg, peer.ALL)
+	}
 }

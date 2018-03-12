@@ -29,18 +29,19 @@ var (
 	DataDir          = "."
 	LogDirName       = "logs"
 	ChainDataDirName = "chaindata"
+	PluginDirname    = "plugin"
 )
 
 //ReadInConfig
 func ReadInConfig(cfgFile string) (err error) {
-	//viper.SetConfigFile(cfgFile)
-	// if err := viper.ReadInConfig(); err != nil {
-	// 	return err
-	// }
-	//TODo
+	viper.SetConfigFile(cfgFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
 	DataDir = getString("blockchain.datadir", DataDir)
 	utils.OpenDir(filepath.Join(DataDir, ChainDataDirName))
 	utils.OpenDir(filepath.Join(DataDir, LogDirName))
+	utils.OpenDir(filepath.Join(DataDir, PluginDirname))
 	return nil
 }
 
@@ -48,9 +49,9 @@ func getInt(key string, defaultValue int) int {
 	var (
 		value int
 	)
-	// if value = viper.GetInt(key); value == 0 {
-	// 	return defaultValue
-	// }
+	if value = viper.GetInt(key); value == 0 {
+		return defaultValue
+	}
 	return value
 }
 
@@ -58,9 +59,9 @@ func getString(key string, defaultValue string) string {
 	var (
 		value string
 	)
-	// if value = viper.GetString(key); value == "" {
-	// 	return defaultValue
-	// }
+	if value = viper.GetString(key); value == "" {
+		return defaultValue
+	}
 	return value
 }
 
@@ -68,9 +69,9 @@ func getStringSlice(key string, defaultValue []string) []string {
 	var (
 		value []string
 	)
-	// if value = viper.GetStringSlice(key); len(value) == 0 {
-	// 	return defaultValue
-	// }
+	if value = viper.GetStringSlice(key); len(value) == 0 {
+		return defaultValue
+	}
 	return value
 }
 
@@ -78,9 +79,9 @@ func getDuration(key string, defaultValue time.Duration) time.Duration {
 	var (
 		value string
 	)
-	// if value = viper.GetString(key); value == "" {
-	// 	return defaultValue
-	// }
+	if value = viper.GetString(key); value == "" {
+		return defaultValue
+	}
 	if duration, err := time.ParseDuration(value); err == nil {
 		return duration
 	}
@@ -91,8 +92,8 @@ func getbool(key string, defaultValue bool) bool {
 	var (
 		value bool
 	)
-	// if value = viper.GetBool(key); value == false {
-	// 	return defaultValue
-	// }
+	if value = viper.GetBool(key); value == false {
+		return defaultValue
+	}
 	return value
 }

@@ -15,4 +15,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package cmd
+
+package config
+
+import (
+	"github.com/zipper-project/zipper/blockchain/validator"
+)
+
+func ValidatorConfig() *validator.Config {
+	var config = validator.DefaultConfig()
+
+	config.IsValid = getbool("validator.status", config.IsValid)
+	config.BlacklistDur = getDuration("validator.blacklisttimeout", config.BlacklistDur)
+	config.TxPoolCapacity = getInt("validator.txpool.capacity", config.TxPoolCapacity)
+	config.TxPoolTimeOut = getDuration("validator.txpool.timeout", config.TxPoolTimeOut)
+	config.TxPoolDelay = getInt("validator.txpool.txdelay", config.TxPoolDelay)
+	return config
+}

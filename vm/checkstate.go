@@ -19,10 +19,11 @@
 package vm
 
 import (
+	"encoding/hex"
 	"errors"
 	"strconv"
-	"encoding/hex"
-	"github.com/zipper-project/zipper/config"
+
+	"github.com/zipper-project/zipper/account"
 )
 
 func CheckStateKey(key string) error {
@@ -74,13 +75,12 @@ func CheckAddr(addr string) error {
 		return errors.New("account address illegal")
 	}
 
-	if len(addrByte) != config.AddressLength {
+	if len(addrByte) != account.AddressLength {
 		return errors.New("account address illegal")
 	}
 
 	return nil
 }
-
 
 func CheckVmMem(mem int) error {
 	if mem < 200 {

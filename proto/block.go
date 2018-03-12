@@ -6,19 +6,20 @@ import (
 )
 
 // NewBlock returns an new block
-func NewBlock(prvHash crypto.Hash,
+func NewBlock(prvHash, stateHash crypto.Hash,
 	timeStamp, height, nonce uint32,
 	txsHash crypto.Hash,
 	Txs Transactions) *Block {
 	return &Block{
-		Header: NewBlockHeader(prvHash, timeStamp, height, nonce, txsHash),
+		Header: NewBlockHeader(prvHash, stateHash, timeStamp, height, nonce, txsHash),
 	}
 }
 
 // NewBlockHeader returns a blockheader
-func NewBlockHeader(prvHash crypto.Hash, timeStamp, height, nonce uint32, txsHash crypto.Hash) *BlockHeader {
+func NewBlockHeader(prvHash, stateHash crypto.Hash, timeStamp, height, nonce uint32, txsHash crypto.Hash) *BlockHeader {
 	return &BlockHeader{
 		prvHash.String(),
+		stateHash.String(),
 		timeStamp,
 		nonce,
 		txsHash.String(),
@@ -67,5 +68,7 @@ func (b *Block) Hash() crypto.Hash {
 // Height returns the block height
 func (b *Block) Height() uint32 { return b.Header.Height }
 
-// PreviousHash returns the block height
-func (b *Block) PreviousHash() string { return b.Header.PreviousHash }
+// PreviousHash returns the previous hash of the block
+func (b *Block) PreviousHash() string {
+	return b.Header.PreviousHash
+}
