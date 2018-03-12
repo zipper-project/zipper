@@ -139,12 +139,10 @@
 			"revisionTime": "2017-08-08T02:16:21Z"
 		},
 		{
-			"path": "github.com/hashicorp/hcl",
-			"revision": ""
-		},
-		{
-			"path": "github.com/hashicorp/hcl/hcl/printer",
-			"revision": ""
+			"checksumSHA1": "40vJyUB4ezQSn/NSadsKEOrudMc=",
+			"path": "github.com/inconshreveable/mousetrap",
+			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
+			"revisionTime": "2014-10-17T20:07:13Z"
 		},
 		{
 			"checksumSHA1": "V1a5/Ra9HXKNuArt5WKUqu+Jxt8=",
@@ -159,22 +157,10 @@
 			"revisionTime": "2018-02-01T18:47:07Z"
 		},
 		{
-			"path": "github.com/magiconair/properties",
-			"revision": ""
-		},
-		{
 			"checksumSHA1": "kUqagcesbbz7A2eCwDYntlvrEqs=",
 			"path": "github.com/mattn/go-sqlite3",
 			"revision": "696e2e43cb00dcb1acaf6073e01493e3c4197b75",
 			"revisionTime": "2018-02-18T13:15:52Z"
-		},
-		{
-			"path": "github.com/mitchellh/mapstructure",
-			"revision": ""
-		},
-		{
-			"path": "github.com/pelletier/go-toml",
-			"revision": ""
 		},
 		{
 			"checksumSHA1": "/75oK5RVdiy+bYLaLKcysy/NRLc=",
@@ -219,22 +205,40 @@
 			"revisionTime": "2017-11-30T10:32:05Z"
 		},
 		{
-			"path": "github.com/spf13/afero",
-			"revision": ""
+			"checksumSHA1": "jAzqolwnRJhHsKXmmvKNrHqxqAw=",
+			"path": "github.com/spaolacci/murmur3",
+			"revision": "f09979ecbc725b9e6d41a297405f65e7e8804acc",
+			"revisionTime": "2018-01-18T20:28:30Z"
 		},
 		{
-			"path": "github.com/spf13/cast",
-			"revision": ""
+			"checksumSHA1": "VNUkFQcdmHCkMDIcFtqlxsQQlls=",
+			"path": "github.com/spf13/cobra",
+			"revision": "c6c44e6fdcc30161c7f4480754da7230d01c06e3",
+			"revisionTime": "2018-03-01T18:15:57Z"
 		},
 		{
-			"path": "github.com/spf13/jwalterweatherman",
-			"revision": ""
+			"checksumSHA1": "tfKmT8uovT9Ch2YyDJtti3egAB4=",
+			"path": "github.com/spf13/pflag",
+			"revision": "ee5fd03fd6acfd43e44aea0b4135958546ed8e73",
+			"revisionTime": "2018-02-20T14:32:36Z"
 		},
 		{
 			"checksumSHA1": "UINsk+/nXUhGcKvNxm9mYchRuls=",
 			"path": "github.com/tecbot/gorocksdb",
 			"revision": "",
 			"tree": true
+		},
+		{
+			"checksumSHA1": "5amfcgkpgnDTPxm8yPfdeHUW9KQ=",
+			"path": "github.com/willf/bitset",
+			"revision": "1a37ad96e8c1a11b20900a232874843b5174221f",
+			"revisionTime": "2017-09-05T00:26:39Z"
+		},
+		{
+			"checksumSHA1": "yyysY3Ior4jy2HtchTxlP1ayIvQ=",
+			"path": "github.com/willf/bloom",
+			"revision": "54e3b963ee1652b06c4562cb9b6020ebc6e36e59",
+			"revisionTime": "2017-05-05T22:16:40Z"
 		},
 		{
 			"checksumSHA1": "evaKLjhScVfgZWZBc8Oo5Ti9Fnk=",
