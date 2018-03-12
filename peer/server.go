@@ -83,10 +83,11 @@ type Server struct {
 }
 
 // NewServer return a new p2p server
-func NewServer(option *Option) *Server {
+func NewServer(option *Option, pm IProtocolManager) *Server {
 	srv := &Server{
 		peerManager: NewPeerManager(),
 		option:      option,
+		protocol:    pm,
 	}
 	return srv
 }

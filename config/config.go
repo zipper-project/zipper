@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/zipper-project/zipper/common/utils"
 )
 

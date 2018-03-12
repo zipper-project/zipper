@@ -1,0 +1,85 @@
+net:
+  maxPeers: 8
+  bootstrapNodes: ["encode://303030315f616263@127.0.0.1:20166|0"]
+  listenAddr: "127.0.0.1:20168"
+
+log:
+  level: "debug"
+
+jrpc:
+  enabled: true
+  port: "8883"
+
+blockchain:
+  chainId: "00"
+  nodeId: "0003_abc"
+  datadir: "datadir/3"
+  maxOccurs: 1
+  cpuprofile: "profile/prof_node3"
+  nodeType:
+    type: "vp"
+
+validator:
+  status: true
+  blacklisttimeout: 60s
+  txpool:
+    capacity: 1000000
+    timeout: 30m
+    txdelay:  0
+
+issueaddr:
+  addr: ["6ce1bb0858e71b50d603ebe4bec95b11d8833e6d"]
+
+#consensus
+consensus:
+  plugin: "scip"
+
+  noops:
+    batchSize: 10000
+    batchTimeout: 1s
+    blockSize: 10000
+    blockTimeout: 1s
+
+  scip:
+    "N": 4
+    Q: 3
+    K: 10
+    batchSize: 10000
+    batchTimeout: 500ms
+    blockSize: 1
+    blockTimeout: 2s
+    request: 3s
+    viewChange: 2s
+    resendViewChange: 2s
+    viewChangePeriod: 0s
+
+# vm
+vm:
+  
+  # vm maximum memory size (MB) if maxMem < 200 ,maxMem use the default value 200M
+  maxMem: 800
+  registrySize: 256
+  callStackSize: 64
+  execLimitStackDepth: 100
+
+  # maximum allow execute opcode count
+  execLimitMaxOpcodeCount: 10000000000
+
+  # the contract maximum run time (millisecond)
+  execLimitMaxRunTime: 1000
+
+  # contract script(lua source code) maximum size (byte)
+  execLimitMaxScriptSize: 4096000
+
+  # the max state value size (byte)
+  execLimitMaxStateValueSize: 5120000
+
+  # the max state count in one contract
+  execLimitMaxStateItemCount: 1000
+
+  # max state key length
+  execLimitMaxStateKeyLength: 256
+
+  luaVMExeFilePath: "bin/luavm"
+  jsVMExeFilePath: "bin/jsvm"
+  BsWorkerCnt: 3

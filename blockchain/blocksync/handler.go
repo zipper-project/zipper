@@ -15,8 +15,9 @@ import (
 )
 
 type SyncWorker struct {
-	ledger *ledger.Ledger
-	bc     *blockchain.Blockchain
+	ledger         *ledger.Ledger
+	bc             *blockchain.Blockchain
+	expectedHeight uint32
 }
 
 func (worker *SyncWorker) VmJob(data interface{}) (interface{}, error) {
@@ -203,9 +204,10 @@ func (worker *SyncWorker) OnBlock(workerData types.WorkerData) {
 		}
 
 		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getBlocksMsg)
-	} else if worker.bc.Relay(blockMsg.Block) {
+	} else {
+		worker.bc.Relay(blockMsg.Block)
 		if !worker.bc.Started() && worker.bc.CurrentHeight() == worker.expectedHeight {
-			worker.bc.StartService()
+			worker.bc.StartServices()
 		}
 	}
 }
@@ -231,12 +233,9 @@ func (worker *SyncWorker) SendMsg(peer *peer.Peer, protoID, msgID uint32, imsg p
 	}
 
 	msg.Payload = imsgByte
-	if data, err := msg.MarshalMsg(); err != nil {
-		err = peer.SendMsg(data)
-		if err != nil {
-			return fmt.Errorf("can't send msg[%+v] to peer[%+v]", msg, peer.ID)
-		}
+	err = peer.SendMsg(msg)
+	if err != nil {
+		return fmt.Errorf("can't send msg[%+v] to peer[%+v]", msg, peer.ID)
 	}
-
 	return nil
 }
