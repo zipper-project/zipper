@@ -45,24 +45,24 @@ func NewNode(cfgFile string) *Node {
 		log.Panicf("loadConfig error %v", err)
 		return nil
 	}
+
+	cfg := config.NodeOption()
+	log.New(cfg.LogFile)
+	log.SetLevel(cfg.LogLevel)
+	config.VMConfig(cfg.LogFile, cfg.LogLevel)
 	pm := protoManager.NewProtoManager()
-	return &Node{
-		bc: blockchain.NewBlockchain(pm),
+	node := &Node{
+		bc:  blockchain.NewBlockchain(pm),
+		cfg: cfg,
 	}
+
+	return node
 }
 
 // Start starts the blockchain service
 func (node *Node) Start() {
 	abort := make(chan os.Signal, 1)
 	signal.Notify(abort, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGKILL)
-	go func() {
-		<-abort
-		node.bc.Stop()
-		os.Exit(0)
-	}()
-
-	log.New(node.cfg.LogFile)
-	log.SetLevel(node.cfg.LogLevel)
 
 	if node.cfg.ProfPort != "" {
 		go func() {
@@ -91,4 +91,8 @@ func (node *Node) Start() {
 	}
 
 	node.bc.Start()
+
+	<-abort
+	node.bc.Stop()
+	os.Exit(0)
 }
