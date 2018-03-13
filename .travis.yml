@@ -1,0 +1,51 @@
+# Copyright (C) 2017, Zipper Team.  All rights reserved.
+#
+# This file is part of zipper
+#
+# The zipper is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The zipper is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http:#www.gnu.org/licenses/>.
+
+language: go
+
+go:
+  - 1.9.x
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
+      
+env:
+    - CC=gcc-4.9 CXX=g++-4.9
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
+      
+env:
+    - CC=gcc-4.9 CXX=g++-4.9
+
+install:
+  - cd build
+  - travis_wait 30 make all
+
+cache:
+  directories:
+    - vendor
+    - $GOPATH/pkg
