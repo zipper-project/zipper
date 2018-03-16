@@ -1,4 +1,4 @@
-local L0 = require("ZIP")
+local ZIP = require("ZIP")
 
 local CName = "withdraw"
 local Scale = 1
@@ -17,43 +17,36 @@ end
 
 function Init(args)
     -- info
-    local txInfo = L0.TxInfo()
-    local sender = txInfo["Sender"]
-    print(">>> init INFO:", txInfo["Hash"], sender)
-
-
     local str = ""
     for k, v in pairs(args) do 
         str = str .. v .. ","
     end
-    print("INFO:" .. CName .. " L0Init(" .. string.sub(str, 0, -2) .. ")")
+    print("INFO:" .. CName .. " Init(" .. string.sub(str, 0, -2) .. ")")
 
     -- validate
     if(table.size(args) ~= 2)
     then
-        print("ERR :" .. CName ..  " L0Init --- wrong args number", table.size(args))
+        print("ERR :" .. CName ..  " Init --- wrong args number", table.size(args))
         return false
     end
     
     -- execute
-    L0.PutState("version", 0)
-    print("INFO:" .. CName ..  " L0Init --- system account " .. args[0])
-    L0.PutState("account_system", args[0])
-    print("INFO:" .. CName ..  " L0Init --- fee account " .. args[1])
-    L0.PutState("account_fee", args[1])
+    ZIP.PutState("version", 0)
+    print("INFO:" .. CName ..  " Init --- system account " .. args[0])
+    ZIP.PutState("account_system", args[0])
+    print("INFO:" .. CName ..  " Init --- fee account " .. args[1])
+    ZIP.PutState("account_fee", args[1])
     return true
 end
 
+
 function Invoke(func, args)
     -- info
-    print('========================================')
     local str = ""
     for k, v in pairs(args) do 
         str = str .. v .. ","
     end
-    local txInfo = L0.TxInfo()
-    local sender = txInfo["Sender"]
-    print(">>> INFO:" .. CName ..  " L0Invoke(" .. func .. "," .. string.sub(str, 0, -2) .. ")", txInfo["Hash"], sender)
+    print("INFO:" .. CName ..  " Invoke(" .. func .. "," .. string.sub(str, 0, -2) .. ")")
 
     -- execute
     if("launch" == func) then
@@ -65,7 +58,7 @@ function Invoke(func, args)
     elseif("fail" == func) then
         return fail(args)
     else
-        print("ERR :" .. CName ..  " L0Invoke --- function not support", func)
+        print("ERR :" .. CName ..  " Invoke --- function not support", func)
         return false
     end
     return true
@@ -77,16 +70,16 @@ function Query(args)
     for k, v in pairs(args) do 
         str = str .. v .. ","
     end
-    print("INFO:" .. CName ..  " L0Query(" .. string.sub(str, 0, -2) .. ")")
+    print("INFO:" .. CName ..  " Query(" .. string.sub(str, 0, -2) .. ")")
     -- validate
     if(table.size(args) ~= 1)
     then
-        print("ERR :" .. CName ..  " L0Query --- wrong args number", table.size(args))
+        print("ERR :" .. CName ..  " Query --- wrong args number", table.size(args))
         return false
     end
     -- execute
     local withdrawID = "withdraw_"..args[0]
-    local withdrawInfo = L0.GetState(withdrawID)
+    local withdrawInfo = ZIP.GetState(withdrawID)
     if (not withdrawInfo)
     then
         return args[0] .. " not found "
@@ -109,12 +102,12 @@ function launch(args)
     -- execute 
     local withdrawID = "withdraw_"..args[0]
     ----[[
-    if (L0.GetState(withdrawID))
+    if (ZIP.GetState(withdrawID))
     then
         print("ERR :" .. CName ..  " launch --- withdrawID alreay exist", args[0])
         return false
     end
-    local txInfo = L0.TxInfo()
+    local txInfo = ZIP.TxInfo()
     local sender = txInfo["Sender"]
     local assetID = txInfo["AssetID"]
     local amount = txInfo["Amount"]
@@ -133,7 +126,7 @@ function launch(args)
         print("ERR :" .. CName ..  " launch --- wrong amount", amount)
         return false
     end
-    L0.PutState(withdrawID, sender.."&"..assetID.."&"..amount)
+    ZIP.PutState(withdrawID, sender.."&"..assetID.."&"..amount)
     print("INFO:" .. CName ..  " launch ---", withdrawID, sender, assetID, amount)
     --]]--
     return true
@@ -149,13 +142,13 @@ function cancel(args)
     -- execute
     local withdrawID = "withdraw_"..args[0]
     ----[[
-    local withdrawInfo = L0.GetState(withdrawID)
+    local withdrawInfo = ZIP.GetState(withdrawID)
     if (not withdrawInfo) 
     then
         print("ERR :" .. CName ..  " cancel --- withdrawID not exist", args[0])
         return false
     end
-    local txInfo = L0.TxInfo()
+    local txInfo = ZIP.TxInfo()
     local sender = txInfo["Sender"]
     local amount = txInfo["Amount"]
     if (type(amount) ~= "number" or amount > 0)
@@ -173,8 +166,8 @@ function cancel(args)
         return false
     end
     -- to do balance check
-    L0.Transfer(receiver, assetID, amount, 0)
-    L0.DelState(withdrawID)
+    ZIP.Transfer(receiver, assetID, amount)
+    ZIP.DelState(withdrawID)
     print("INFO:" .. CName ..  " cancel ---", withdrawID, receiver, assetID, amount)
     --]]--
     return true
@@ -197,13 +190,13 @@ function succeed(args)
     end
     feeAmount = feeAmount * Scale
     ----[[
-    local system = L0.GetState("account_system")
-    local txInfo = L0.TxInfo()
+    local system = ZIP.GetState("account_system")
+    local txInfo = ZIP.TxInfo()
     local sender = txInfo["Sender"]
     local amount = txInfo["Amount"]
     if (system ~= sender) 
     then
-        print("ERR :" .. CName ..  " succeed --- wrong sender", sender, system, txInfo["Hash"])
+        print("ERR :" .. CName ..  " succeed --- wrong sender", sender, system)
         return false
     end
     if (type(amount) ~= "number" or amount > 0)
@@ -212,7 +205,7 @@ function succeed(args)
         return false
     end
 
-    local withdrawInfo = L0.GetState(withdrawID)
+    local withdrawInfo = ZIP.GetState(withdrawID)
     if (not withdrawInfo) 
     then
         print("ERR :" .. CName ..  " succeed --- withdrawID not exist", args[0])
@@ -227,10 +220,10 @@ function succeed(args)
         return false
     end
     -- to do balance check
-    local fee = L0.GetState("account_fee")
-    L0.Transfer(fee, assetID, feeAmount, 0)
-    L0.Transfer(system, assetID, amount-feeAmount, 0)
-    L0.DelState(withdrawID)
+    local fee = ZIP.GetState("account_fee")
+    ZIP.Transfer(fee, assetID, feeAmount)
+    ZIP.Transfer(system, assetID, amount-feeAmount)
+    ZIP.DelState(withdrawID)
     print("INFO:" .. CName ..  " succeed ---", withdrawID, fee, assetID, feeAmount)
     print("INFO:" .. CName ..  " succeed ---", withdrawID, system, assetID, amount-feeAmount)
     --]]--
@@ -247,13 +240,13 @@ function fail(args)
     -- execute
     local withdrawID = "withdraw_"..args[0]
     ----[[
-    local system = L0.GetState("account_system")
-    local txInfo = L0.TxInfo()
+    local system = ZIP.GetState("account_system")
+    local txInfo = ZIP.TxInfo()
     local sender = txInfo["Sender"]
     local amount = txInfo["Amount"]
     if (system ~= sender) 
     then
-        print("ERR :" .. CName ..  " fail --- wrong sender", sender, system, txInfo["Hash"])
+        print("ERR :" .. CName ..  " fail --- wrong sender", sender, system)
         return false
     end
     if (type(amount) ~= "number" or amount > 0)
@@ -262,7 +255,7 @@ function fail(args)
         return false
     end
 
-    local withdrawInfo = L0.GetState(withdrawID)
+    local withdrawInfo = ZIP.GetState(withdrawID)
     if (not withdrawInfo) 
     then
         print("ERR :" .. CName ..  " fail --- withdrawID not exist", args[0])
@@ -273,8 +266,8 @@ function fail(args)
     local assetID = tonumber(tb[2])
     local amount = tonumber(tb[3])
     -- to do balance check
-    L0.Transfer(receiver, assetID, amount,0)
-    L0.DelState(withdrawID)
+    ZIP.Transfer(receiver, assetID, amount)
+    ZIP.DelState(withdrawID)
     --]]--
     print("INFO:" .. CName ..  " fail ---", withdrawID, receiver, assetID, amount)
     return true

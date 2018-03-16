@@ -252,8 +252,10 @@ func (peer *Peer) recv(ctx context.Context) {
 				peer.ID = handshake.Id
 				peer.handshaked = true
 				peer.SendMsg(NewHandshakeAckMessage())
-				msg, _ := peer.protocol.CreateStatusMsg()
-				peer.SendMsg(msg)
+				if peer.protocol != nil {
+					msg, _ := peer.protocol.CreateStatusMsg()
+					peer.SendMsg(msg)
+				}
 				go peer.loop(ctx)
 			case HANDSHAKEACK:
 				handshake := &proto.HandShake{}
@@ -272,8 +274,10 @@ func (peer *Peer) recv(ctx context.Context) {
 				peer.Type = handshake.Type
 				peer.ID = handshake.Id
 				peer.handshaked = true
-				msg, _ := peer.protocol.CreateStatusMsg()
-				peer.SendMsg(msg)
+				if peer.protocol != nil {
+					msg, _ := peer.protocol.CreateStatusMsg()
+					peer.SendMsg(msg)
+				}
 				go peer.loop(ctx)
 			default:
 				log.Errorf("Peer %s(%s->%s) handle msg %d, no handshake", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
@@ -322,7 +326,7 @@ func (peer *Peer) recv(ctx context.Context) {
 					log.Errorf("Peer %s(%s->%s) handle msg %d/%d --- not support", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID)
 					return
 				}
-			} else {
+			} else if peer.protocol != nil {
 				if err := peer.protocol.Handle(peer, msg); err != nil {
 					log.Errorf("Peer %s(%s->%s) handle msg %d/%d --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID, err)
 					return
