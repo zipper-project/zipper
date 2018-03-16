@@ -2,19 +2,18 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package scip
 
@@ -42,7 +41,6 @@ func NewScip(options *Options, stack consensus.IStack) *Scip {
 	scip := &Scip{
 		options:    options,
 		stack:      stack,
-		testing:    true,
 		testChan:   make(chan struct{}),
 		statistics: make(map[string]time.Duration),
 
@@ -80,7 +78,6 @@ type Scip struct {
 	sync.RWMutex
 	options       *Options
 	stack         consensus.IStack
-	testing       bool
 	testChan      chan struct{}
 	statistics    map[string]time.Duration
 	statisticsCnt int
@@ -133,9 +130,6 @@ func (scip *Scip) Start() {
 	if scip.exit != nil {
 		log.Warnf("Replica %s consenter already started", scip.options.ID)
 		return
-	}
-	if scip.testing {
-		//scip.testConsensus()
 	}
 	log.Infof("scip : %s", scip)
 	log.Infof("Replica %s consenter started", scip.options.ID)
@@ -249,9 +243,6 @@ func (scip *Scip) BroadcastConsensusChannel() <-chan *consensus.BroadcastConsens
 
 //OutputTxsChannel Commit block data
 func (scip *Scip) OutputTxsChannel() <-chan *consensus.OutputTxs {
-	if scip.testing {
-		return nil
-	}
 	return scip.outputTxsChan
 }
 

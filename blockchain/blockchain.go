@@ -2,19 +2,18 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package blockchain
 
@@ -123,6 +122,7 @@ func NewBlockchain(pm peer.IProtocolManager) *Blockchain {
 
 	log.Debugf("start: peer.NewServer...")
 	bc.server = peer.NewServer(config.ServerOption(), pm)
+
 	return bc
 }
 
@@ -131,7 +131,7 @@ func (bc *Blockchain) Start() {
 		bc.StartServices()
 	}
 	go bc.server.Start()
-	go func() {
+	blockChainLoop := func() {
 		for {
 			select {
 			case <-bc.quitCh:
@@ -139,8 +139,8 @@ func (bc *Blockchain) Start() {
 			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
 				//TODO
 				header := &p2p.Header{}
-				header.ProtoID = 1
-				header.MsgID = 1
+				header.ProtoID = uint32(proto.ProtoID_ConsensusWorker)
+				header.MsgID = uint32(proto.MsgType_BC_OnConsensusMSg)
 				msg := p2p.NewMessage(header, broadcastConsensusData.Payload)
 				bc.server.Broadcast(msg, peer.VP)
 			case commitedTxs := <-bc.consenter.OutputTxsChannel():
@@ -177,7 +177,8 @@ func (bc *Blockchain) Start() {
 				}*/
 			}
 		}
-	}()
+	}
+	go blockChainLoop()
 }
 
 func (bc *Blockchain) Stop() {
@@ -189,6 +190,14 @@ func (bc *Blockchain) Stop() {
 // CurrentHeight returns current heigt of the current block
 func (bc *Blockchain) CurrentHeight() uint32 {
 	return bc.currentBlockHeader.Height
+}
+
+func (bc *Blockchain) GetConsenter() consensus.Consenter {
+	return bc.consenter
+}
+
+func (bc *Blockchain) GetLedger() *ledger.Ledger {
+	return bc.ledger
 }
 
 // CurrentBlockHash returns current block hash of the current block
@@ -340,8 +349,7 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 
 func (bc *Blockchain) Relay(inv proto.IInventory) {
 	var (
-		msg    *p2p.Message
-		invMsg = &proto.GetInvMsg{}
+		msg *p2p.Message
 	)
 	switch inv.(type) {
 	case *proto.Transaction:
@@ -352,14 +360,16 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 		}
 		if bc.ProcessTransaction(tx, true) {
 			log.Debugf("ProcessTransaction, tx_hash: %+v", tx.Hash())
-			invMsg.Type = proto.InvType_transaction
-			invMsg.Hashs = []string{inv.Hash().String()}
-
 			header := &p2p.Header{}
-			header.ProtoID = 1
-			header.MsgID = 1
-			imsgByte, _ := invMsg.MarshalMsg()
-			msg = p2p.NewMessage(header, imsgByte)
+			header.ProtoID = uint32(proto.ProtoID_SyncWorker)
+			header.MsgID = uint32(proto.MsgType_BC_OnTransactionMsg)
+			txMsg := &proto.OnTransactionMsg{
+				Transaction:tx,
+			}
+
+			txMsgData, _ := txMsg.MarshalMsg()
+			msg = p2p.NewMessage(header, txMsgData)
+			bc.server.Broadcast(msg, peer.VP)
 		}
 	case *proto.Block:
 		block := inv.(*proto.Block)
@@ -369,18 +379,17 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 		}
 
 		if bc.ProcessBlock(block, true) {
-			log.Debugf("Relay inventory %v", inv)
+			log.Debugf("ProcessTransaction, blk_hash: %+v", block.Hash())
+			invMsg := &proto.GetInvMsg{}
 			invMsg.Type = proto.InvType_block
 			invMsg.Hashs = []string{inv.Hash().String()}
 
 			header := &p2p.Header{}
-			header.ProtoID = 1
-			header.MsgID = 1
+			header.ProtoID = uint32(proto.ProtoID_SyncWorker)
+			header.MsgID = uint32(proto.MsgType_BC_GetInvMsg)
 			imsgByte, _ := invMsg.MarshalMsg()
 			msg = p2p.NewMessage(header, imsgByte)
+			bc.server.Broadcast(msg, peer.NVP)
 		}
-	}
-	if msg != nil {
-		bc.server.Broadcast(msg, peer.ALL)
 	}
 }

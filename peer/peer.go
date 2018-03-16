@@ -2,19 +2,18 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package peer
 
@@ -59,17 +58,17 @@ var TypeName = map[uint32]string{
 type PeerID []byte
 
 func (p PeerID) String() string {
-	return fmt.Sprintf("%s:%s", option.ChainID, hex.EncodeToString(p))
+	return fmt.Sprintf("%s", hex.EncodeToString(p))
 }
 
 const (
-	BASE      = 0
-	HANDSHAKE = iota + BASE*100
-	HANDSHAKEACK
-	PING
-	PONG
-	PEERS
-	PEERSACK
+	BASE         = 0
+	HANDSHAKE    = iota + BASE*100 // 1
+	HANDSHAKEACK                   // 2
+	PING                           // 3
+	PONG                           // 4
+	PEERS                          // 5
+	PEERSACK                       // 6
 )
 
 // Peer represents a peer in blockchain
@@ -110,28 +109,32 @@ func (peer *Peer) Start() {
 	peer.waitGroup.Add(2)
 	go peer.recv(ctx)
 	go peer.send(ctx)
-	log.Infoln("Peer %s(%s->%s ) Started", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
+	log.Infof("Peer %s(%s->%s) Started", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
 }
 
 func (peer *Peer) Stop() {
+	peer.peerManager.remove(peer.conn)
+	peer.conn.Close()
+}
+
+func (peer *Peer) stop() {
 	if peer.cancel == nil {
 		log.Warnf("Peer %s(%s->%s) already stopped.", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
 		return
 	}
+	peer.peerManager.Remove(peer.conn)
+	peer.sendChannel = make(chan *proto.Message)
 	peer.cancel()
 	peer.waitGroup.Wait()
-	log.Infoln("Peer %s(%s->%s) Stopped", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
-}
-
-func (peer *Peer) stop() {
-	peer.peerManager.remove(peer.conn)
-	peer.conn.Close()
+	log.Infof("Peer %s(%s->%s) Stopped", peer.String(), peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String())
 	peer.conn = nil
 	peer.cancel = nil
-	peer.sendChannel = make(chan *proto.Message)
 }
 
 func (peer *Peer) SendMsg(msg *proto.Message) error {
+	if msg.Header.ProtoID != BASE {
+		log.Debugf("Peer %s(%s->%s) send msg %d/%d", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID)
+	}
 	select {
 	case peer.sendChannel <- msg:
 		return nil
@@ -175,9 +178,7 @@ func (peer *Peer) ParsePeer(rawurl string) error {
 
 func (peer *Peer) recv(ctx context.Context) {
 	defer peer.stop()
-
 	defer peer.waitGroup.Done()
-	peer.conn.SetReadDeadline(time.Now().Add(option.DeadLine))
 	headerSize := 4
 	for {
 		select {
@@ -185,40 +186,51 @@ func (peer *Peer) recv(ctx context.Context) {
 			return
 		default:
 		}
+
 		//head
+		peer.conn.SetReadDeadline(time.Now().Add(option.DeadLine))
 		headerBytes := make([]byte, headerSize)
 		if n, err := peer.conn.Read(headerBytes); err != nil {
-			log.Errorf("%s(%s->%s) conn read header --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			if err == io.EOF {
+				log.Debugf("Peer %s(%s->%s) received close --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+				return
+			} else if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
+				continue
+			}
+			log.Errorf("Peer %s(%s->%s) conn read header --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		} else if n != headerSize {
 			err := fmt.Errorf("missing (expect %v, actual %v)", headerSize, n)
-			log.Errorf("%s(%s->%s) conn read header --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			log.Errorf("Peer %s(%s->%s) conn read header --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		}
 		//data
 		dataSize := binary.LittleEndian.Uint32(headerBytes)
 		if dataSize > maxMsgSize {
 			err := fmt.Errorf("message too big")
-			log.Errorf("%s(%s->%s) conn read header --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			log.Errorf("Peer %s(%s->%s) conn read datasize --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		}
 		data := make([]byte, dataSize)
+		peer.conn.SetReadDeadline(time.Now().Add(option.DeadLine))
 		if n, err := io.ReadFull(peer.conn, data); err != nil {
-			log.Errorf("%s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			log.Errorf("Peer %s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		} else if uint32(n) != dataSize {
 			err := fmt.Errorf("missing (expect %v, actual %v)", dataSize, n)
-			log.Errorf("%s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			log.Errorf("Peer %s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		}
 		peer.lastActiveTime = time.Now()
 
 		msg := &proto.Message{}
 		if err := msg.UnmarshalMsg(data); err != nil {
-			log.Errorf("%s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
+			log.Errorf("Peer %s(%s->%s) conn read data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 			return
 		}
-		log.Debugf("%s(%s->%s) handle msg %d", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+		if msg.Header.ProtoID != BASE {
+			log.Debugf("Peer %s(%s->%s) handle msg %d/%d", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID)
+		}
 
 		if !peer.handshaked {
 			switch msg.Header.MsgID {
@@ -228,11 +240,11 @@ func (peer *Peer) recv(ctx context.Context) {
 					return
 				}
 				if !verifyHandShake(handshake) {
-					log.Errorf("%s(%s->%s) handle msg %d,  handshake --- failed to verify", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d,  handshake --- failed to verify %#v", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID, msg)
 					return
 				}
 				if peer.peerManager.Contains(handshake.Id) {
-					log.Errorf("%s(%s->%s) handle msg %d,  handshake --- id already exist", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d,  handshake --- id already exist", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
 					return
 				}
 				peer.Address = handshake.Address
@@ -240,6 +252,8 @@ func (peer *Peer) recv(ctx context.Context) {
 				peer.ID = handshake.Id
 				peer.handshaked = true
 				peer.SendMsg(NewHandshakeAckMessage())
+				msg, _ := peer.protocol.CreateStatusMsg()
+				peer.SendMsg(msg)
 				go peer.loop(ctx)
 			case HANDSHAKEACK:
 				handshake := &proto.HandShake{}
@@ -247,27 +261,29 @@ func (peer *Peer) recv(ctx context.Context) {
 					return
 				}
 				if !verifyHandShake(handshake) {
-					log.Errorf("%s(%s->%s) handle msg %d,  handshake --- failed to verify", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d,  handshake --- failed to verify", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
 					return
 				}
 				if peer.peerManager.Contains(handshake.Id) {
-					log.Errorf("%s(%s->%s) handle msg %d,  handshake --- id already exist", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d,  handshake --- id already exist", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
 					return
 				}
 				peer.Address = handshake.Address
 				peer.Type = handshake.Type
 				peer.ID = handshake.Id
 				peer.handshaked = true
+				msg, _ := peer.protocol.CreateStatusMsg()
+				peer.SendMsg(msg)
 				go peer.loop(ctx)
 			default:
-				log.Errorf("%s(%s->%s) handle msg %d, no handshake", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+				log.Errorf("Peer %s(%s->%s) handle msg %d, no handshake", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
 				return
 			}
 		} else {
 			if msg.Header.ProtoID == BASE {
 				switch msg.Header.MsgID {
 				case HANDSHAKE, HANDSHAKEACK:
-					log.Errorf("%s(%s->%s) handle msg %d, already handshake", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d, already handshake", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.MsgID)
 					return
 				case PING:
 					header := &proto.Header{
@@ -303,12 +319,12 @@ func (peer *Peer) recv(ctx context.Context) {
 						peer.peerManager.Connect(tpeer, peer.protocol)
 					}
 				default:
-					log.Errorf("%s(%s->%s) handle msg %d/%d --- not support", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID)
+					log.Errorf("Peer %s(%s->%s) handle msg %d/%d --- not support", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID)
 					return
 				}
 			} else {
 				if err := peer.protocol.Handle(peer, msg); err != nil {
-					log.Errorf("%s(%s->%s) handle msg %d/%d --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID, err)
+					log.Errorf("Peer %s(%s->%s) handle msg %d/%d --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), msg.Header.ProtoID, msg.Header.MsgID, err)
 					return
 				}
 			}
@@ -318,7 +334,6 @@ func (peer *Peer) recv(ctx context.Context) {
 
 func (peer *Peer) send(ctx context.Context) {
 	defer peer.waitGroup.Done()
-	peer.conn.SetWriteDeadline(time.Now().Add(option.DeadLine))
 	headerSize := 4
 	for {
 		select {
@@ -362,6 +377,7 @@ func (peer *Peer) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-keepAliveTimer.C:
+			log.Infof("Peers %d", len(peer.peerManager.peers))
 			keepAliveTimer.Stop()
 			if time.Now().Sub(peer.lastActiveTime) > option.KeepAliveInterval {
 				header := &proto.Header{

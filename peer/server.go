@@ -2,19 +2,18 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 package peer
 
 import (
@@ -53,9 +52,9 @@ var option = &Option{
 	ListenAddress:     ":20166",
 	DeadLine:          time.Second,
 	PrivateKey:        nil,
-	ReconnectInterval: 30 * time.Second,
-	ReconnectTimes:    3,
-	KeepAliveInterval: 15 * time.Second,
+	ReconnectInterval: 1 * time.Second,
+	ReconnectTimes:    10,
+	KeepAliveInterval: 5 * time.Second,
 	KeepAliveTimes:    30,
 	MaxPeers:          8,
 	MinPeers:          3,
@@ -111,6 +110,7 @@ func (srv *Server) Start() {
 	for _, bNode := range srv.option.BootstrapNodes {
 		peer := &Peer{}
 		if err := peer.ParsePeer(bNode); err != nil {
+			log.Errorf("parse peer %s error --- %s", bNode, err)
 			continue
 		}
 		srv.peerManager.Connect(peer, srv.protocol)
@@ -135,15 +135,16 @@ func (srv *Server) listen(ctx context.Context, addr string) (err error) {
 		return
 	}
 
+	log.Debugf("listening %s...", addr)
+
 	defer listener.Close()
-	listener.SetDeadline(time.Now().Add(srv.option.DeadLine))
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
-
+		listener.SetDeadline(time.Now().Add(srv.option.DeadLine))
 		if conn, err = listener.AcceptTCP(); err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
@@ -156,6 +157,8 @@ func (srv *Server) listen(ctx context.Context, addr string) (err error) {
 		log.Debugf("Accept connection %s, %v", conn.RemoteAddr(), conn)
 		if peer, err := srv.peerManager.Add(conn, srv.protocol); err == nil {
 			peer.SendMsg(NewHandshakeMessage())
+		} else {
+			conn.Close()
 		}
 	}
 }
@@ -177,4 +180,9 @@ func (srv *Server) Stop() {
 // Broadcast broadcasts message to remote peers
 func (srv *Server) Broadcast(msg *proto.Message, tp uint32) {
 	srv.peerManager.Broadcast(msg, tp)
+}
+
+// Unicast broadcasts message to remote peers
+func (srv *Server) Unicast(msg *proto.Message, peerID []byte) {
+	srv.peerManager.Unicast(msg, peerID)
 }

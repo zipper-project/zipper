@@ -2,22 +2,20 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package peer
-
 
 import (
 	"bytes"
@@ -43,8 +41,8 @@ func NewPeerManager() *PeerManager {
 }
 
 func (pm *PeerManager) Stop() {
-	pm.RLock()
-	defer pm.RUnlock()
+	pm.Lock()
+	defer pm.Unlock()
 	for _, peer := range pm.peers {
 		peer.Stop()
 	}
@@ -56,6 +54,17 @@ func (pm *PeerManager) Broadcast(msg *proto.Message, tp uint32) {
 	for _, peer := range pm.peers {
 		if peer.Type&tp > 0 {
 			peer.SendMsg(msg)
+		}
+	}
+}
+
+func (pm *PeerManager) Unicast(msg *proto.Message, peerID []byte) {
+	pm.RLock()
+	defer pm.RUnlock()
+	for _, peer := range pm.peers {
+		if bytes.Equal(peer.ID, peerID) {
+			peer.SendMsg(msg)
+			break
 		}
 	}
 }
@@ -84,9 +93,6 @@ func (pm *PeerManager) Add(conn net.Conn, protocol IProtocolManager) (*Peer, err
 func (pm *PeerManager) Remove(conn net.Conn) {
 	pm.Lock()
 	defer pm.Unlock()
-	if peer, ok := pm.peers[conn]; ok {
-		peer.Stop()
-	}
 	delete(pm.peers, conn)
 }
 
@@ -109,16 +115,12 @@ func (pm *PeerManager) Connect(peer *Peer, protocol IProtocolManager) {
 	pm.RLock()
 	defer pm.RUnlock()
 
+	if bytes.Equal(option.PeerID, peer.ID) {
+		return
+	}
+
 	if len(pm.peers) >= option.MaxPeers {
 		log.Warnf("connected peer more than max peers.")
-		return
-	}
-	if bytes.Equal(option.PeerID, peer.ID) {
-		log.Warnf("can ont connect self[%s]", peer.ID)
-		return
-	}
-	if pm.Contains(peer.ID) {
-		log.Warnf("peer [%s] already connected", peer.ID)
 		return
 	}
 	if peer.Address == "" || strings.HasPrefix(peer.Address, ":") {
@@ -128,13 +130,16 @@ func (pm *PeerManager) Connect(peer *Peer, protocol IProtocolManager) {
 
 	go func() {
 		i := 0
-		log.Debugf("peer manager try connect : %s", peer.Address)
 		for {
 			if pm.Contains(peer.ID) || i > option.ReconnectTimes {
 				break
 			}
+			log.Debugf("peer manager try connect : %s %s(%d)", peer.ID, peer.Address, i+1)
 			if conn, err := net.Dial("tcp4", peer.Address); err == nil {
-				pm.Add(conn, protocol)
+				if _, err := pm.Add(conn, protocol); err != nil {
+					log.Warnf("peer manager try connect : %s(%d) --- %s", peer.Address, i+1, err)
+					conn.Close()
+				}
 				break
 			}
 			t := time.NewTimer(option.ReconnectInterval)

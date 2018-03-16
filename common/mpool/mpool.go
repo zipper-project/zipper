@@ -2,19 +2,18 @@
 //
 // This file is part of zipper
 //
-// The zipper is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
 //
 // The zipper is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
 //
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package mpool
 
@@ -24,6 +23,7 @@ import (
 	"errors"
 	"reflect"
 	"sync/atomic"
+	"github.com/zipper-project/zipper/common/log"
 )
 
 // start vm(lua and js service according to configure)
@@ -44,6 +44,10 @@ type VirtualMachine struct {
 	selects   []reflect.SelectCase
 	workers []*workerWrapper
 	jobcnt  int
+}
+
+func (vm *VirtualMachine) IsRunning() bool {
+	return vm.isRunning()
 }
 
 func (vm *VirtualMachine) isRunning() bool {
@@ -74,6 +78,7 @@ func (vm *VirtualMachine) Open(name string) (*VirtualMachine, error) {
 		vm.selects = make([]reflect.SelectCase, len(vm.workers))
 
 		for i, workerWrapper := range vm.workers {
+			log.Debugf("len(vm.workers: %+v, %+v", len(vm.workers), workerWrapper)
 			workerWrapper.Open()
 			vm.selects[i] = reflect.SelectCase{
 				Dir: reflect.SelectRecv,
@@ -82,6 +87,7 @@ func (vm *VirtualMachine) Open(name string) (*VirtualMachine, error) {
 		}
 
 		//go vm.Loop()
+		vm.name = name
 		vm.setRunning(true)
 		return vm, nil
 	}
@@ -244,13 +250,15 @@ func (vm *VirtualMachine) SendWorkClean(jobData interface{}) (interface{}, error
 	//defer vm.statusMutex.Unlock()
 
 	if vm.isRunning() {
+		//log.Debugf("=== VirtualMachine: %p, is Running: %+v", vm, vm.IsRunning())
 		if chose, _, ok := reflect.Select(vm.selects); ok && chose >= 0 {
-			//log.Debugf("chose: %+v, same_cnt: %+v", chose, len(vm.selects))
 			vm.jobcnt ++
 			vm.workers[chose].jobChan <- jobData
+			return nil, nil
+		} else {
+			log.Errorf("Vm(%+v) is running , chose: %+v, ok: %+v", vm.name, chose, ok)
+			return nil, ErrWorkerClosed
 		}
-
-		return nil, ErrWorkerClosed
 	}
 
 	return nil, ErrVMNotRunning

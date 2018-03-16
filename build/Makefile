@@ -1,5 +1,6 @@
 
 all:
+	@go install -tags=embed ../cmd/zipper/
 	go build -tags=embed -o ./bin/zipper ../cmd/zipper/
 
 run:

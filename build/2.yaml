@@ -1,6 +1,6 @@
 net:
   maxPeers: 8
-  bootstrapNodes: ["encode://303030315f616263@127.0.0.1:20166|0"]
+  bootstrapNodes: ["encode://303030315f616263@127.0.0.1:20166&1"]
   listenAddr: "127.0.0.1:20167"
 
 log:
@@ -22,14 +22,12 @@ blockchain:
 
 validator:
   status: true
+  issueaddr: ["6ce1bb0858e71b50d603ebe4bec95b11d8833e6d"]
   blacklisttimeout: 60s
   txpool:
     capacity: 1000000
     timeout: 30m
     txdelay:  0
-
-issueaddr:
-  addr: ["6ce1bb0858e71b50d603ebe4bec95b11d8833e6d"]
 
 #consensus
 consensus:

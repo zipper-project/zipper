@@ -1,3 +1,20 @@
+// Copyright (C) 2017, Zipper Team.  All rights reserved.
+//
+// This file is part of zipper
+//
+// The zipper is free software: you can use, copy, modify,
+// and distribute this software for any purpose with or
+// without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// The zipper is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// ISC License for more details.
+//
+// You should have received a copy of the ISC License
+// along with this program.  If not, see <https://opensource.org/licenses/isc>.
+
 package blocksync
 
 import (
@@ -7,13 +24,12 @@ import (
 	"github.com/zipper-project/zipper/blockchain"
 	"github.com/zipper-project/zipper/common/crypto"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/ledger"
 	"github.com/zipper-project/zipper/peer"
 	msgProto "github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/types"
-	"github.com/yuin/gopher-lua/pm"
-	"golang.org/x/tools/go/gcimporter15/testdata"
 )
 
 type SyncWorker struct {
@@ -23,8 +39,9 @@ type SyncWorker struct {
 }
 
 func (worker *SyncWorker) VmJob(data interface{}) (interface{}, error) {
-	workerData := data.(types.WorkerData)
+	workerData := data.(*types.WorkerData)
 	msg := workerData.GetMsg()
+	log.Debugf("======> syncWorker ProtoID: %+v, MsgID: %+v", msg.Header.MsgID, msg.Header.MsgID)
 	switch proto.MsgType(msg.Header.MsgID) {
 	case proto.MsgType_BC_OnStatusMSg:
 		worker.OnStatus(workerData)
@@ -56,16 +73,16 @@ func NewSyncWorker(ledger *ledger.Ledger, bc *blockchain.Blockchain) *SyncWorker
 	}
 }
 
-func SetSyncWorkers(workerNums int, ledger *ledger.Ledger, bc *blockchain.Blockchain) []*SyncWorker {
-	var txWorkers []*SyncWorker
+func GetSyncWorkers(workerNums int, bc *blockchain.Blockchain) []mpool.VmWorker {
+	cssWorkers := make([]mpool.VmWorker, 0)
 	for i := 0; i < workerNums; i++ {
-		txWorkers = append(txWorkers, NewSyncWorker(ledger, bc))
+		cssWorkers = append(cssWorkers, NewSyncWorker(bc.GetLedger(), bc))
 	}
 
-	return txWorkers
+	return cssWorkers
 }
 
-func (worker *SyncWorker) OnStatus(workerData types.WorkerData) {
+func (worker *SyncWorker) OnStatus(workerData *types.WorkerData) {
 	statusMsg := proto.StatusMsg{}
 	if err := statusMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid StatusMsg: %+v", workerData.GetMsg().Payload)
@@ -82,13 +99,13 @@ func (worker *SyncWorker) OnStatus(workerData types.WorkerData) {
 			HashStop:      crypto.Hash{}.String(),
 		}
 
-		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getBlocksMsg)
+		worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_GetBlocksMsg, getBlocksMsg)
 	} else if !worker.bc.Started() {
-		worker.bc.Start()
+		worker.bc.StartServices()
 	}
 }
 
-func (worker *SyncWorker) OnGetBlocks(workerData types.WorkerData) {
+func (worker *SyncWorker) OnGetBlocks(workerData *types.WorkerData) {
 	getBlocksMsg := proto.GetBlocksMsg{}
 	if err := getBlocksMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetBlocksMsg: %+v", workerData.GetMsg().Payload)
@@ -124,11 +141,11 @@ func (worker *SyncWorker) OnGetBlocks(workerData types.WorkerData) {
 			Hashs: hashes,
 		}
 
-		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getInvMsg)
+		worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_GetInvMsg, getInvMsg)
 	}
 }
 
-func (worker *SyncWorker) OnGetInv(workerData types.WorkerData) {
+func (worker *SyncWorker) OnGetInv(workerData *types.WorkerData) {
 	if worker.bc.Synced() {
 		return
 	}
@@ -162,11 +179,11 @@ func (worker *SyncWorker) OnGetInv(workerData types.WorkerData) {
 		getDataMsg := &proto.GetDataMsg{}
 		getDataMsg.InvList[0].Hashs = hashes
 
-		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getDataMsg)
+		worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_GetDataMsg, getDataMsg)
 	}
 }
 
-func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
+func (worker *SyncWorker) OnGetData(workerData *types.WorkerData) {
 	getDataMsg := &proto.GetDataMsg{}
 	if err := getDataMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetDataMsg: %+v", workerData.GetMsg().Payload)
@@ -191,7 +208,7 @@ func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
 						},
 					}
 
-					worker.SendMsg(workerData.GetSendPeer(), 1, 1, blockMsg)
+					worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_OnBlockMsg, blockMsg)
 				}
 			}
 		case proto.InvType_transaction:
@@ -201,7 +218,7 @@ func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
 						Transaction: tx,
 					}
 
-					worker.SendMsg(workerData.GetSendPeer(), 1, 1, txMsg)
+					worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_OnTransactionMsg, txMsg)
 				}
 			}
 		default:
@@ -211,7 +228,7 @@ func (worker *SyncWorker) OnGetData(workerData types.WorkerData) {
 
 }
 
-func (worker *SyncWorker) OnBlock(workerData types.WorkerData) {
+func (worker *SyncWorker) OnBlock(workerData *types.WorkerData) {
 	blockMsg := &proto.OnBlockMsg{}
 	if err := blockMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnBlockMsg: %+v", workerData.GetMsg().Payload)
@@ -224,7 +241,7 @@ func (worker *SyncWorker) OnBlock(workerData types.WorkerData) {
 			HashStop:      crypto.Hash{}.String(),
 		}
 
-		worker.SendMsg(workerData.GetSendPeer(), 1, 1, getBlocksMsg)
+		worker.SendMsg(workerData.GetSendPeer(), proto.ProtoID_SyncWorker, proto.MsgType_BC_GetBlocksMsg, getBlocksMsg)
 	} else {
 		worker.bc.Relay(blockMsg.Block)
 		if !worker.bc.Started() && worker.bc.CurrentHeight() == worker.expectedHeight {
@@ -233,7 +250,7 @@ func (worker *SyncWorker) OnBlock(workerData types.WorkerData) {
 	}
 }
 
-func (worker *SyncWorker) OnTransaction(workerData types.WorkerData) {
+func (worker *SyncWorker) OnTransaction(workerData *types.WorkerData) {
 	txMsg := &proto.OnTransactionMsg{}
 	if err := txMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnTransactionMsg: %+v", workerData.GetMsg().Payload)
@@ -243,10 +260,10 @@ func (worker *SyncWorker) OnTransaction(workerData types.WorkerData) {
 	worker.bc.Relay(txMsg.Transaction)
 }
 
-func (worker *SyncWorker) SendMsg(peer *peer.Peer, protoID, msgID uint32, imsg proto.IMsg) error {
+func (worker *SyncWorker) SendMsg(peer *peer.Peer, protoID proto.ProtoID, msgID proto.MsgType, imsg proto.IMsg) error {
 	msg := &msgProto.Message{}
-	msg.Header.ProtoID = protoID
-	msg.Header.MsgID = msgID
+	msg.Header.ProtoID = uint32(protoID)
+	msg.Header.MsgID = uint32(msgID)
 
 	imsgByte, err := imsg.MarshalMsg()
 	if err != nil {

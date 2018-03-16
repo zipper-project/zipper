@@ -5,6 +5,12 @@ package proto;
 import "block.proto";
 import "transaction.proto";
 
+enum ProtoID {
+    NA = 0;
+    SyncWorker = 1;  // include transaction handler
+    ConsensusWorker = 2;
+}
+
 enum MsgType {
     BC_GetBlocksMsg = 0;
     BC_GetInvMsg = 1;
@@ -12,6 +18,7 @@ enum MsgType {
     BC_OnBlockMsg = 3;
     BC_OnTransactionMsg = 4;
     BC_OnStatusMSg = 5;
+    BC_OnConsensusMSg = 6;
 }
 
 message GetBlocksMsg {
