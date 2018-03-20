@@ -18,15 +18,14 @@ message OutPoint {
 }
 
 message TxIn {
-	OutPoint prevOutPoint = 1;
+	OutPoint previousOutPoint = 1;
     bytes txWitness = 2;
-	//repeated bytes txWitness = 2;
 }
 
 message TxOut {
-	int64 value = 1;
-	bytes addr = 2;
-    //repeated bytes addr = 2;
+    uint32 asset = 1;
+	int64 value = 2;
+	bytes address = 3;
 }
 
 message ContractSpec{
