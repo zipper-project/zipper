@@ -5,12 +5,12 @@ package proto;
 import "transaction.proto";
 
 message BlockHeader {
-    string previousHash = 1;
-    string stateHash = 2;
-    uint32 timeStamp = 3;
-    uint32 nonce = 4;
-    string txsMerkleHash = 5;
-    uint32 height = 6;
+    bytes previousHash = 1;
+    bytes txsMerkleHash = 2;
+    bytes stateHash = 3;
+    uint32 timeStamp = 4;
+    uint32 height = 5;
+    uint32 nonce = 6;
 }
 
 

@@ -3,20 +3,31 @@ syntax = "proto3";
 package proto;
 
 enum TransactionType {
-    Atomic = 0;                       // inchain 0
-	AcrossChain  = 1;                 // acrosschain1
-	Merged     = 2;                   // merge 2
-	Backfront    = 3;                 // Backfront 3
-	Distribut  = 4;                   // Distribut 4
-	Issue     = 5;                    // Issue 5
-	IssueUpdate    = 6;               // IssueUpdate 6
-	JSContractInit  = 7;              // js contract_Init 7
-	LuaContractInit    = 8;           // lua contract_Init 8
-	ContractInvoke     = 9;           // contract_Invoke 9
-	ContractQuery   = 10;             // contract_Query 10
-	Security    = 11;                // security 11
+    Issue           = 0;                // Issue 
+	IssueUpdate     = 1;                // IssueUpdate 
+    Atomic          = 2;                // Atomic 
+	JSContractInit  = 3;                // js contract_Init 
+	LuaContractInit = 4;                // lua contract_Init 
+	ContractInvoke  = 5;                // contract_Invoke 
+	ContractQuery   = 6;                // contract_Query
 }
 
+message OutPoint {
+	bytes  txHash = 1;
+	uint32 index = 2;
+}
+
+message TxIn {
+	OutPoint prevOutPoint = 1;
+    bytes txWitness = 2;
+	//repeated bytes txWitness = 2;
+}
+
+message TxOut {
+	int64 value = 1;
+	bytes addr = 2;
+    //repeated bytes addr = 2;
+}
 
 message ContractSpec{
     bytes addr = 1;
@@ -25,22 +36,16 @@ message ContractSpec{
 }
 
 message TxHeader {
-    bytes fromChain = 1;
-    bytes toChain = 2;
-    TransactionType type = 3;
-    uint32 nonce = 4;
-    string sender = 5;
-    string recipient = 6;
-    uint32 assetID = 7;
-    int64 amount = 8;
-    int64 fee = 9;
-    bytes signature = 10;
-    uint32 createTime = 11;
+    uint32 version          = 1;
+    uint32 createTime       = 2;
+    uint32 nonce            = 3;
+    TransactionType type    = 4;
 }
 
 message Transaction {
     TxHeader Header = 1;
-    bytes payload = 2;
-    bytes meta = 3;
+    repeated TxIn inputs    = 2;
+	repeated TxOut outputs  = 3;
     ContractSpec contractSpec = 4;
+    bytes payload = 5;
 }
