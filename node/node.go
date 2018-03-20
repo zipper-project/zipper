@@ -27,13 +27,13 @@ import (
 	"syscall"
 
 	"github.com/zipper-project/zipper/blockchain"
+	"github.com/zipper-project/zipper/blockchain/blocksync"
 	"github.com/zipper-project/zipper/blockchain/protoManager"
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/config"
-	"github.com/zipper-project/zipper/rpc"
-	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/consensus"
-	"github.com/zipper-project/zipper/blockchain/blocksync"
+	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/rpc"
 )
 
 // Node represents the blockchain zipper
@@ -52,7 +52,7 @@ func NewNode(cfgFile string) *Node {
 	cfg := config.NodeOption()
 	log.New(cfg.LogFile)
 	log.SetLevel(cfg.LogLevel)
-//	log.SetOutput(os.Stdout)
+	//	log.SetOutput(os.Stdout)
 	config.VMConfig(cfg.LogFile, cfg.LogLevel)
 	pm := protoManager.NewProtoManager()
 	node := &Node{
@@ -61,7 +61,7 @@ func NewNode(cfgFile string) *Node {
 	}
 
 	pm.SetBlockChain(node.bc)
-	pm.RegisterWorker(proto.ProtoID_ConsensusWorker, consensus.GetConsensusWorkers(1,  node.bc.GetConsenter()))
+	pm.RegisterWorker(proto.ProtoID_ConsensusWorker, consensus.GetConsensusWorkers(1, node.bc.GetConsenter()))
 	pm.RegisterWorker(proto.ProtoID_SyncWorker, blocksync.GetSyncWorkers(1, node.bc))
 	return node
 }
@@ -86,7 +86,6 @@ func (node *Node) Start() {
 		cpuFile := node.cfg.CPUFile
 		cpuProfile, _ := os.Create(cpuFile)
 		pprof.StartCPUProfile(cpuProfile)
-
 		defer func() {
 			memFile := cpuFile + ".mem"
 			pprof.StopCPUProfile()
@@ -102,5 +101,4 @@ func (node *Node) Start() {
 
 	<-abort
 	node.bc.Stop()
-	os.Exit(0)
 }
