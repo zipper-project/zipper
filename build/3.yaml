@@ -16,7 +16,6 @@ blockchain:
   datadir: "datadir/3"
   maxOccurs: 1
   cpuprofile: "profile/prof_node3"
-  cpuprofile: "profile/prof_node2"
   profPort: "6063"
   nodeType:
     type: "vp"

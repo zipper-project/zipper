@@ -187,7 +187,7 @@ func invokeTx(privkey *crypto.PrivateKey, assetID uint32, amount int64, contract
 	sender := account.PublicKeyToAddress(*privkey.Public())
 
 	contractSpec := new(proto.ContractSpec)
-	contractSpec.Code = contractAddr.Bytes()
+	contractSpec.Addr = contractAddr.Bytes()
 
 	contractSpec.Params = args
 

@@ -368,7 +368,6 @@ func (peer *Peer) send(ctx context.Context) {
 				log.Errorf("%s(%s->%s) conn send header & data --- %s", peer, peer.conn.LocalAddr().String(), peer.conn.RemoteAddr().String(), err)
 				continue
 			}
-		default:
 		}
 
 	}
