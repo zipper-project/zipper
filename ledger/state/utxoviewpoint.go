@@ -1,12 +1,11 @@
-package utxo
+package state
 
 import (
 	"fmt"
 
+	"github.com/zipper-project/zipper/common/crypto"
 	"github.com/zipper-project/zipper/proto"
 )
-
-type Hash [32]byte
 
 // utxoOutput houses details about an individual unspent transaction output such
 // as whether or not it is spent, its address, and how much it pays.
@@ -106,7 +105,7 @@ func (entry *UtxoEntry) IsFullySpent() bool {
 // either due to it being invalid or because the output is not part of the view
 // due to previously being spent/pruned.
 func (entry *UtxoEntry) AssetByIndex(outputIndex uint32) uint32 {
-	if output, exist := entry.outputs[outputIndex]; exist {
+	if output, exist := entry.sparseOutputs[outputIndex]; exist {
 		return output.asset
 	}
 	return 0
@@ -142,7 +141,7 @@ func (entry *UtxoEntry) AddressByIndex(outputIndex uint32) []byte {
 
 // newUtxoEntry returns a new unspent transaction output entry with the provided
 // coinbase flag and block height ready to have unspent outputs added.
-func newUtxoEntry(version int32, blockHeight int32) *UtxoEntry {
+func newUtxoEntry(version uint32, blockHeight uint32) *UtxoEntry {
 	return &UtxoEntry{
 		version:       version,
 		blockHeight:   blockHeight,
@@ -158,14 +157,14 @@ func newUtxoEntry(version int32, blockHeight int32) *UtxoEntry {
 // The unspent outputs are needed by other transactions for things such as
 // script validation and double spend prevention.
 type UtxoViewpoint struct {
-	entries map[Hash]*UtxoEntry
+	entries map[crypto.Hash]*UtxoEntry
 }
 
 // LookupEntry returns information about a given transaction according to the
 // current state of the view.  It will return nil if the passed transaction
 // hash does not exist in the view or is otherwise not available such as when
 // it has been disconnected during a reorg.
-func (view *UtxoViewpoint) LookupEntry(txHash *Hash) *UtxoEntry {
+func (view *UtxoViewpoint) LookupEntry(txHash *crypto.Hash) *UtxoEntry {
 	entry, ok := view.entries[*txHash]
 	if !ok {
 		return nil
@@ -175,7 +174,7 @@ func (view *UtxoViewpoint) LookupEntry(txHash *Hash) *UtxoEntry {
 }
 
 // Entries returns the underlying map that stores of all the utxo entries.
-func (view *UtxoViewpoint) Entries() map[Hash]*UtxoEntry {
+func (view *UtxoViewpoint) Entries() map[crypto.Hash]*UtxoEntry {
 	return view.entries
 }
 
@@ -195,7 +194,7 @@ func (view *UtxoViewpoint) commit() {
 // NewUtxoViewpoint returns a new empty unspent transaction output view.
 func NewUtxoViewpoint() *UtxoViewpoint {
 	return &UtxoViewpoint{
-		entries: make(map[Hash]*UtxoEntry),
+		entries: make(map[crypto.Hash]*UtxoEntry),
 	}
 }
 
@@ -203,16 +202,18 @@ func NewUtxoViewpoint() *UtxoViewpoint {
 // unspendable to the view.  When the view already has entries for any of the
 // outputs, they are simply marked unspent.  All fields will be updated for
 // existing entries since it's possible it has changed during a reorg.
-func (view *UtxoViewpoint) AddTxOuts(tx *proto.Transaction, blockHeight int32) {
+func (view *UtxoViewpoint) AddTxOuts(tx *proto.Transaction, blockHeight uint32) {
 	// When there are not already any utxos associated with the transaction,
 	// add a new entry for it to the view.
-	entry := view.LookupEntry(tx.Hash())
+	txHash := tx.Hash()
+	entry := view.LookupEntry(&txHash)
 	if entry == nil {
 		entry = newUtxoEntry(tx.Header.Version, blockHeight)
-		view.entries[*tx.Hash()] = entry
+		view.entries[txHash] = entry
 	} else {
 		entry.blockHeight = blockHeight
 	}
+
 	entry.modified = true
 
 	// Loop all of the transaction outputs and add those which are not
@@ -247,13 +248,13 @@ func (view *UtxoViewpoint) AddTxOuts(tx *proto.Transaction, blockHeight int32) {
 // spent.  In addition, when the 'stxos' argument is not nil, it will be updated
 // to append an entry for each spent txout.  An error will be returned if the
 // view does not contain the required utxos.
-func (view *UtxoViewpoint) connectTransaction(tx *proto.Transaction, blockHeight int32) error {
+func (view *UtxoViewpoint) connectTransaction(tx *proto.Transaction, blockHeight uint32) error {
 	// Spend the referenced utxos by marking them spent in the view and,
 	// if a slice was provided for the spent txout details, append an entry
 	// to it.
 	for _, txIn := range tx.Inputs {
 		originIndex := txIn.PreviousOutPoint.Index
-		entry := view.entries[txIn.PreviousOutPoint.Hash]
+		entry := view.entries[crypto.NewHash(txIn.PreviousOutPoint.TxHash)]
 
 		// Ensure the referenced utxo exists in the view.  This should
 		// never happen unless there is a bug is introduced in the code.
