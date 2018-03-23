@@ -15,7 +15,6 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-
 package proto
 
 import (
@@ -23,33 +22,16 @@ import (
 	"github.com/zipper-project/zipper/common/crypto"
 )
 
-// NewBlock returns an new block
-func NewBlock(prvHash, stateHash crypto.Hash,
-	timeStamp, height, nonce uint32,
-	txsHash crypto.Hash,
-	Txs Transactions) *Block {
-	return &Block{
-		Header: NewBlockHeader(prvHash, stateHash, timeStamp, height, nonce, txsHash),
-		Transactions:Txs,
-	}
-}
-
 // NewBlockHeader returns a blockheader
-func NewBlockHeader(prvHash, stateHash crypto.Hash, timeStamp, height, nonce uint32, txsHash crypto.Hash) *BlockHeader {
+func NewBlockHeader(prviousHash, txsRootHash, stateHash crypto.Hash, timeStamp, height, nonce uint32) *BlockHeader {
 	return &BlockHeader{
-		prvHash.String(),
-		stateHash.String(),
-		timeStamp,
-		nonce,
-		txsHash.String(),
-		height,
+		PreviousHash:  prviousHash.Bytes(),
+		TxsMerkleHash: txsRootHash.Bytes(),
+		StateHash:     stateHash.Bytes(),
+		TimeStamp:     timeStamp,
+		Height:        height,
+		Nonce:         nonce,
 	}
-}
-
-// IInventory defines interface that broadcast data should implements
-type IInventory interface {
-	Hash() crypto.Hash
-	Serialize() []byte
 }
 
 // Serialize returns the serialized bytes of a blockheader
@@ -68,6 +50,14 @@ func (bh *BlockHeader) Hash() crypto.Hash {
 	return crypto.DoubleSha256(bh.Serialize())
 }
 
+// NewBlock returns an new block
+func NewBlock(header *BlockHeader, txs Transactions) *Block {
+	return &Block{
+		Header:       header,
+		Transactions: txs,
+	}
+}
+
 // Serialize block data marshal
 func (b *Block) Serialize() []byte {
 	bytes, _ := proto.Marshal(b)
@@ -82,12 +72,4 @@ func (b *Block) Deserialize(data []byte) error {
 // Hash returns the hash of the blockheader in block
 func (b *Block) Hash() crypto.Hash {
 	return b.Header.Hash()
-}
-
-// Height returns the block height
-func (b *Block) Height() uint32 { return b.Header.Height }
-
-// PreviousHash returns the previous hash of the block
-func (b *Block) PreviousHash() string {
-	return b.Header.PreviousHash
 }

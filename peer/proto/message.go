@@ -15,7 +15,6 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-
 package proto
 
 import "github.com/golang/protobuf/proto"
@@ -28,18 +27,18 @@ func NewMessage(header *Header, payload []byte) *Message {
 	}
 }
 
-func (msg *Message) MarshalMsg() ([]byte, error) {
+func (msg *Message) Serialize() ([]byte, error) {
 	return proto.Marshal(msg)
 }
 
-func (msg *Message) UnmarshalMsg(data []byte) error {
+func (msg *Message) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, msg)
 }
 
-func (handshake *HandShake) MarshalMsg() ([]byte, error) {
+func (handshake *HandShake) Serialize() ([]byte, error) {
 	return proto.Marshal(handshake)
 }
 
-func (handshake *HandShake) UnmarshalMsg(data []byte) error {
+func (handshake *HandShake) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, handshake)
 }

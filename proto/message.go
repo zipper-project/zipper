@@ -15,60 +15,59 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-
 package proto
 
 import "github.com/golang/protobuf/proto"
 
 type IMsg interface {
-	MarshalMsg() ([]byte, error)
-	UnmarshalMsg(data []byte) error
+	Serialize() ([]byte, error)
+	Deserialize(data []byte) error
 }
 
-func (m *StatusMsg) MarshalMsg() ([]byte, error) {
+func (m *StatusMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *StatusMsg) UnmarshalMsg(data []byte) error {
+func (m *StatusMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *GetBlocksMsg) MarshalMsg() ([]byte, error) {
+func (m *GetBlocksMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetBlocksMsg) UnmarshalMsg(data []byte) error {
+func (m *GetBlocksMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *GetInvMsg) MarshalMsg() ([]byte, error) {
+func (m *GetInvMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetInvMsg) UnmarshalMsg(data []byte) error {
+func (m *GetInvMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *GetDataMsg) MarshalMsg() ([]byte, error) {
+func (m *GetDataMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *GetDataMsg) UnmarshalMsg(data []byte) error {
+func (m *GetDataMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *OnBlockMsg) MarshalMsg() ([]byte, error) {
+func (m *OnBlockMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *OnBlockMsg) UnmarshalMsg(data []byte) error {
+func (m *OnBlockMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
 
-func (m *OnTransactionMsg) MarshalMsg() ([]byte, error) {
+func (m *OnTransactionMsg) Serialize() ([]byte, error) {
 	return proto.Marshal(m)
 }
 
-func (m *OnTransactionMsg) UnmarshalMsg(data []byte) error {
+func (m *OnTransactionMsg) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, m)
 }
