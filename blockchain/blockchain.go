@@ -321,7 +321,7 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 				Transaction: tx,
 			}
 
-			txMsgData, _ := txMsg.MarshalMsg()
+			txMsgData, _ := txMsg.Serialize()
 			msg = p2p.NewMessage(header, txMsgData)
 			bc.server.Broadcast(msg, peer.VP)
 		}
@@ -341,7 +341,7 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 			header := &p2p.Header{}
 			header.ProtoID = uint32(proto.ProtoID_SyncWorker)
 			header.MsgID = uint32(proto.MsgType_BC_GetInvMsg)
-			imsgByte, _ := invMsg.MarshalMsg()
+			imsgByte, _ := invMsg.Serialize()
 			msg = p2p.NewMessage(header, imsgByte)
 			bc.server.Broadcast(msg, peer.NVP)
 		}

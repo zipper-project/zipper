@@ -84,7 +84,7 @@ func GetSyncWorkers(workerNums int, bc *blockchain.Blockchain) []mpool.VmWorker 
 
 func (worker *SyncWorker) OnStatus(workerData *types.WorkerData) {
 	statusMsg := proto.StatusMsg{}
-	if err := statusMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := statusMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid StatusMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -107,7 +107,7 @@ func (worker *SyncWorker) OnStatus(workerData *types.WorkerData) {
 
 func (worker *SyncWorker) OnGetBlocks(workerData *types.WorkerData) {
 	getBlocksMsg := proto.GetBlocksMsg{}
-	if err := getBlocksMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := getBlocksMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetBlocksMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -151,7 +151,7 @@ func (worker *SyncWorker) OnGetInv(workerData *types.WorkerData) {
 	}
 
 	getInvMsg := &proto.GetInvMsg{}
-	if err := getInvMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := getInvMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetInvMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -185,7 +185,7 @@ func (worker *SyncWorker) OnGetInv(workerData *types.WorkerData) {
 
 func (worker *SyncWorker) OnGetData(workerData *types.WorkerData) {
 	getDataMsg := &proto.GetDataMsg{}
-	if err := getDataMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := getDataMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetDataMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -230,7 +230,7 @@ func (worker *SyncWorker) OnGetData(workerData *types.WorkerData) {
 
 func (worker *SyncWorker) OnBlock(workerData *types.WorkerData) {
 	blockMsg := &proto.OnBlockMsg{}
-	if err := blockMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := blockMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnBlockMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -252,7 +252,7 @@ func (worker *SyncWorker) OnBlock(workerData *types.WorkerData) {
 
 func (worker *SyncWorker) OnTransaction(workerData *types.WorkerData) {
 	txMsg := &proto.OnTransactionMsg{}
-	if err := txMsg.UnmarshalMsg(workerData.GetMsg().Payload); err != nil {
+	if err := txMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnTransactionMsg: %+v", workerData.GetMsg().Payload)
 		return
 	}
@@ -265,7 +265,7 @@ func (worker *SyncWorker) SendMsg(peer *peer.Peer, protoID proto.ProtoID, msgID 
 	msg.Header.ProtoID = uint32(protoID)
 	msg.Header.MsgID = uint32(msgID)
 
-	imsgByte, err := imsg.MarshalMsg()
+	imsgByte, err := imsg.Serialize()
 	if err != nil {
 		return fmt.Errorf("to create invalid msg: %+v", imsg)
 	}

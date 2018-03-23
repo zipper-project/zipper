@@ -71,7 +71,7 @@ func (pm *ProtoManager) CreateStatusMsg() (*proto.Message, error) {
 		StartHeight: pm.bc.CurrentHeight(),
 	}
 
-	statusMsgData, err := statusMsg.MarshalMsg()
+	statusMsgData, err := statusMsg.Serialize()
 	if err != nil {
 		return nil, err
 	}
