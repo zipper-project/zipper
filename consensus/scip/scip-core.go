@@ -305,7 +305,6 @@ func (scip *Scip) recvPrePrepare(preprepare *PrePrepare) *Message {
 				Chain:         scip.options.Chain,
 			}
 			scip.sendViewChange(vc, fmt.Sprintf("failed to verify"))
-			scip.function(5, txs)
 			return nil
 		}
 		core.txs = txs
@@ -469,7 +468,7 @@ func (scip *Scip) recvCommitted(committed *Committed) *Message {
 		delete(scip.coreStore, digest)
 		d = core.endTime.Sub(core.startTime)
 		if core.txs != nil {
-			scip.function(4, core.txs)
+			scip.function(3, core.txs)
 		}
 	}
 	//remove invalid ViewChange
@@ -548,7 +547,7 @@ func (scip *Scip) execute() {
 				panic(fmt.Sprintf("noreachable(%d +2 == %d)", scip.execHeight, request.Height))
 			}
 			scip.function(3, request.Txs)
-			scip.function(6, request.ErrTxs)
+			scip.function(4, request.ErrTxs)
 			scip.execHeight = request.Height + 1
 			var seqNos []uint32
 			seqNos = append(seqNos, seqNo)

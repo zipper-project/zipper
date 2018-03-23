@@ -81,3 +81,14 @@ func (tx *Transaction) Deserialize(data []byte) error {
 
 // Transactions represents transaction slice type for basic sorting.
 type Transactions []*Transaction
+
+func MerkleRootHash(txs Transactions) crypto.Hash {
+	if len(txs) > 0 {
+		hashs := make([]crypto.Hash, 0)
+		for _, tx := range txs {
+			hashs = append(hashs, tx.Hash())
+		}
+		return crypto.ComputeMerkleHash(hashs)[0]
+	}
+	return crypto.Hash{}
+}

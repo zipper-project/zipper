@@ -18,6 +18,10 @@ const (
 	// MaxAmount is the maximum transaction amount allowed .
 	MaxAmount = 21e6 * 1e8
 
+	// MaxTxs is the maximum number of validate transactions
+	// that can be queued.
+	MaxTxs = 1000
+
 	// MaxOrphanTxs is the maximum number of orphan transactions
 	// that can be queued.
 	MaxOrphanTxs = 1000
@@ -625,6 +629,12 @@ func (mp *TxPool) maybeAcceptTransaction(tx *proto.Transaction, rejectDupOrphans
 // with any additional orphan transaactions that were added as a result of
 // the passed one being accepted.
 func (mp *TxPool) ProcessTransaction(tx *proto.Transaction, allowOrphan bool) ([]*TxDesc, error) {
+	if mp.Count() >= MaxTxs {
+		err := fmt.Errorf("total value of all transaction "+
+			"in txpool exceeds max allowed value of %v",
+			MaxTxs)
+		return nil, err
+	}
 	mp.Lock()
 	defer mp.Unlock()
 	log.Debugf("Processing transaction %v", tx.Hash())
@@ -671,6 +681,36 @@ func (mp *TxPool) ProcessTransaction(tx *proto.Transaction, allowOrphan bool) ([
 	// Potentially add the orphan transaction to the orphan pool.
 	mp.addOrphan(tx)
 	return nil, nil
+}
+
+// TxDescs returns a slice of descriptors for all the transactions in the pool.
+// The descriptors are to be treated as read only.
+func (mp *TxPool) TxDescs() []*TxDesc {
+	mp.RLock()
+	defer mp.mtx.RUnlock()
+	descs := make([]*TxDesc, len(mp.pool))
+	i := 0
+	for _, desc := range mp.pool {
+		descs[i] = desc
+		i++
+	}
+
+	return descs
+}
+
+// Txs returns a slice of descriptors for all the transactions in the pool.
+// The descriptors are to be treated as read only.
+func (mp *TxPool) Txs() []*proto.Transaction {
+	mp.RLock()
+	defer mp.mtx.RUnlock()
+	txs := make([]*proto.Transaction, len(mp.pool))
+	i := 0
+	for _, desc := range mp.pool {
+		txs[i] = desc.Tx
+		i++
+	}
+
+	return txs
 }
 
 // New returns a new memory pool for validating and storing standalone

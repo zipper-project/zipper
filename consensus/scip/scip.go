@@ -566,7 +566,7 @@ func (scip *Scip) newView(vc *ViewChange) {
 	for _, core := range scip.coreStore {
 		scip.stopNewViewTimerForCore(core)
 		if core.prePrepare != nil {
-			scip.function(5, core.txs)
+			scip.function(2, core.txs)
 		}
 	}
 	scip.coreStore = make(map[string]*scipCore)
@@ -574,7 +574,7 @@ func (scip *Scip) newView(vc *ViewChange) {
 	for seqNo, req := range scip.committedRequests {
 		if req.Height > scip.execHeight || seqNo > scip.execSeqNo {
 			delete(scip.committedRequests, seqNo)
-			scip.function(5, req.Txs)
+			scip.function(2, req.Txs)
 		}
 	}
 }

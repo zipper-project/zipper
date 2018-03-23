@@ -24,11 +24,14 @@ import (
 
 //VerifyTxs verify
 func (bc *Blockchain) VerifyTxs(txs proto.Transactions) (proto.Transactions, proto.Transactions) {
-	return bc.validator.VerifyTxs(txs)
+	if bc.txPool == nil {
+		return false
+	}
+	return true
 }
 
 func (bc *Blockchain) GetBlockchainInfo() *consensus.BlockchainInfo {
-	height, _ := bc.ledger.Height()
+	height, _ := bc.Ledger.Height()
 	return &consensus.BlockchainInfo{
 		Height: height,
 	}
