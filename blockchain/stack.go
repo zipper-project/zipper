@@ -27,6 +27,16 @@ func (bc *Blockchain) VerifyTxs(txs proto.Transactions) (proto.Transactions, pro
 	if bc.txPool == nil {
 		return false
 	}
+	var rtxs, etxs proto.Transactions
+	for _, tx := range txs {
+		if !bc.txPool.IsTransactionInPool(tx.Hash()) {
+			if _, err := bc.txPool.ProcessTransaction(tx, true); err != nil {
+				etxs = append(etxs, tx)
+				continue
+			}
+		}
+		rtxs = append(rtxs, tx)
+	}
 	return true
 }
 
