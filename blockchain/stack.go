@@ -37,7 +37,7 @@ func (bc *Blockchain) VerifyTxs(txs proto.Transactions) (proto.Transactions, pro
 		}
 		rtxs = append(rtxs, tx)
 	}
-	return true
+	return rtxs, etxs
 }
 
 func (bc *Blockchain) GetBlockchainInfo() *consensus.BlockchainInfo {
