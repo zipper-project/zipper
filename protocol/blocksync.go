@@ -15,7 +15,7 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-package blocksync
+package protocol
 
 import (
 	"errors"
@@ -29,7 +29,6 @@ import (
 	"github.com/zipper-project/zipper/peer"
 	msgProto "github.com/zipper-project/zipper/peer/proto"
 	"github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/types"
 )
 
 type SyncWorker struct {
@@ -39,7 +38,7 @@ type SyncWorker struct {
 }
 
 func (worker *SyncWorker) VmJob(data interface{}) (interface{}, error) {
-	workerData := data.(*types.WorkerData)
+	workerData := data.(*WorkerData)
 	msg := workerData.GetMsg()
 	log.Debugf("======> syncWorker ProtoID: %+v, MsgID: %+v", msg.Header.MsgID, msg.Header.MsgID)
 	switch proto.MsgType(msg.Header.MsgID) {
@@ -82,7 +81,7 @@ func GetSyncWorkers(workerNums int, bc *blockchain.Blockchain) []mpool.VmWorker 
 	return cssWorkers
 }
 
-func (worker *SyncWorker) OnStatus(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnStatus(workerData *WorkerData) {
 	statusMsg := proto.StatusMsg{}
 	if err := statusMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid StatusMsg: %+v", workerData.GetMsg().Payload)
@@ -105,7 +104,7 @@ func (worker *SyncWorker) OnStatus(workerData *types.WorkerData) {
 	}
 }
 
-func (worker *SyncWorker) OnGetBlocks(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnGetBlocks(workerData *WorkerData) {
 	getBlocksMsg := proto.GetBlocksMsg{}
 	if err := getBlocksMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetBlocksMsg: %+v", workerData.GetMsg().Payload)
@@ -145,7 +144,7 @@ func (worker *SyncWorker) OnGetBlocks(workerData *types.WorkerData) {
 	}
 }
 
-func (worker *SyncWorker) OnGetInv(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnGetInv(workerData *WorkerData) {
 	if worker.bc.Synced() {
 		return
 	}
@@ -183,7 +182,7 @@ func (worker *SyncWorker) OnGetInv(workerData *types.WorkerData) {
 	}
 }
 
-func (worker *SyncWorker) OnGetData(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnGetData(workerData *WorkerData) {
 	getDataMsg := &proto.GetDataMsg{}
 	if err := getDataMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid GetDataMsg: %+v", workerData.GetMsg().Payload)
@@ -228,7 +227,7 @@ func (worker *SyncWorker) OnGetData(workerData *types.WorkerData) {
 
 }
 
-func (worker *SyncWorker) OnBlock(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnBlock(workerData *WorkerData) {
 	blockMsg := &proto.OnBlockMsg{}
 	if err := blockMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnBlockMsg: %+v", workerData.GetMsg().Payload)
@@ -250,7 +249,7 @@ func (worker *SyncWorker) OnBlock(workerData *types.WorkerData) {
 	}
 }
 
-func (worker *SyncWorker) OnTransaction(workerData *types.WorkerData) {
+func (worker *SyncWorker) OnTransaction(workerData *WorkerData) {
 	txMsg := &proto.OnTransactionMsg{}
 	if err := txMsg.Deserialize(workerData.GetMsg().Payload); err != nil {
 		log.Errorf("Get invalid OnTransactionMsg: %+v", workerData.GetMsg().Payload)

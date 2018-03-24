@@ -15,19 +15,29 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
+package protocol
 
-package params
-
-const (
-	// GlobalStateKey is the key of global state.
-	GlobalStateKey = "globalStateKey"
-
-	// AdminKey is the key of admin account.
-	AdminKey = "admin"
-
-	// GlobalContractKey is the key of global contract.
-	GlobalContractKey = "globalContract"
-
-	// SecurityContractKey is the key of security plugin name / security contract address.
-	SecurityContractKey = "securityContract"
+import (
+	"github.com/zipper-project/zipper/peer"
+	"github.com/zipper-project/zipper/peer/proto"
 )
+
+type WorkerData struct {
+	msg      *proto.Message
+	sendPeer *peer.Peer
+}
+
+func (wd *WorkerData) GetMsg() *proto.Message {
+	return wd.msg
+}
+
+func (wd *WorkerData) GetSendPeer() *peer.Peer {
+	return wd.sendPeer
+}
+
+func NewWorkerData(sendPeer *peer.Peer, msg *proto.Message) *WorkerData {
+	return &WorkerData{
+		sendPeer: sendPeer,
+		msg:      msg,
+	}
+}

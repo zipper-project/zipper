@@ -15,12 +15,11 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-package consensus
+package protocol
 
 import (
-	"github.com/zipper-project/zipper/types"
-	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/common/log"
+	"github.com/zipper-project/zipper/common/mpool"
 )
 
 type ConsensusWorker struct {
@@ -28,7 +27,7 @@ type ConsensusWorker struct {
 }
 
 func (worker *ConsensusWorker) VmJob(data interface{}) (interface{}, error) {
-	workerData := data.(*types.WorkerData)
+	workerData := data.(*WorkerData)
 	msg := workerData.GetMsg()
 
 	log.Debugf("======= ConsensusWorker recv proto: %+v, msg: %+v", msg.Header.ProtoID, msg.Header.MsgID)
@@ -42,7 +41,7 @@ func (worker *ConsensusWorker) VmReady() bool {
 
 func NewConsensusWorker(consenter Consenter) *ConsensusWorker {
 	return &ConsensusWorker{
-		consenter:consenter,
+		consenter: consenter,
 	}
 }
 

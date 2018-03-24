@@ -15,25 +15,23 @@
 // You should have received a copy of the ISC License
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
-
-package protoManager
+package protocol
 
 import (
 	"fmt"
 	"sync"
 
+	"github.com/zipper-project/zipper/blockchain"
+	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/common/mpool"
 	"github.com/zipper-project/zipper/peer"
 	"github.com/zipper-project/zipper/peer/proto"
 	mproto "github.com/zipper-project/zipper/proto"
-	"github.com/zipper-project/zipper/types"
-	"github.com/zipper-project/zipper/common/log"
-	"github.com/zipper-project/zipper/blockchain"
 )
 
 type ProtoManager struct {
-	bc *blockchain.Blockchain
 	sync.Mutex
+	bc *blockchain.Blockchain
 	wm map[mproto.ProtoID]*mpool.VirtualMachine
 }
 
@@ -65,9 +63,18 @@ func (pm *ProtoManager) RegisterWorker(protocalID mproto.ProtoID, workers []mpoo
 	return nil
 }
 
+func (pm *ProtoManager) Handle(sendPeer *peer.Peer, msg *proto.Message) error {
+	pm.Lock()
+	defer pm.Unlock()
+
+	err := pm.wm[mproto.ProtoID(msg.Header.ProtoID)].SendWorkCleanAsync(NewWorkerData(sendPeer, msg))
+	log.Debugf("ProtoManager recv, ProtoID: %+v, Msg: %+v", msg.Header.ProtoID, msg.Header.MsgID)
+	return err
+}
+
 func (pm *ProtoManager) CreateStatusMsg() (*proto.Message, error) {
 	statusMsg := &mproto.StatusMsg{
-		Version: 1,
+		Version:     1,
 		StartHeight: pm.bc.CurrentHeight(),
 	}
 
@@ -77,25 +84,10 @@ func (pm *ProtoManager) CreateStatusMsg() (*proto.Message, error) {
 	}
 
 	return &proto.Message{
-		Header:&proto.Header{
+		Header: &proto.Header{
 			ProtoID: uint32(mproto.ProtoID_SyncWorker),
-			MsgID: uint32(mproto.MsgType_BC_OnStatusMSg),
+			MsgID:   uint32(mproto.MsgType_BC_OnStatusMSg),
 		},
 		Payload: statusMsgData,
 	}, nil
-}
-
-func (pm *ProtoManager) Handle(sendPeer *peer.Peer, msg *proto.Message) error {
-	pm.Lock()
-	defer pm.Unlock()
-
-
-	err := pm.wm[mproto.ProtoID(msg.Header.ProtoID)].SendWorkCleanAsync(types.NewWorkerData(sendPeer, msg))
-	log.Debugf("ProtoManager recv, ProtoID: %+v, Msg: %+v", msg.Header.ProtoID, msg.Header.MsgID)
-	return err
-}
-
-func (pm *ProtoManager) InitAndRegisterWorker() {
-	//pm.RegisterWorker(params.BlockSyncIdx, blocksync.NewSyncWorker())
-
 }

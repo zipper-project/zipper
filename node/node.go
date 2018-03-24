@@ -27,12 +27,10 @@ import (
 	"syscall"
 
 	"github.com/zipper-project/zipper/blockchain"
-	"github.com/zipper-project/zipper/blockchain/blocksync"
-	"github.com/zipper-project/zipper/blockchain/protoManager"
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/config"
-	"github.com/zipper-project/zipper/consensus"
 	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/protocol"
 	"github.com/zipper-project/zipper/rpc"
 )
 
@@ -54,15 +52,15 @@ func NewNode(cfgFile string) *Node {
 	log.SetLevel(cfg.LogLevel)
 	//	log.SetOutput(os.Stdout)
 	config.VMConfig(cfg.LogFile, cfg.LogLevel)
-	pm := protoManager.NewProtoManager()
+	pm := protocol.NewProtoManager()
 	node := &Node{
 		bc:  blockchain.NewBlockchain(pm),
 		cfg: cfg,
 	}
 
 	pm.SetBlockChain(node.bc)
-	pm.RegisterWorker(proto.ProtoID_ConsensusWorker, consensus.GetConsensusWorkers(1, node.bc.GetConsenter()))
-	pm.RegisterWorker(proto.ProtoID_SyncWorker, blocksync.GetSyncWorkers(1, node.bc))
+	pm.RegisterWorker(proto.ProtoID_ConsensusWorker, protocol.GetConsensusWorkers(1, node.bc.GetConsenter()))
+	pm.RegisterWorker(proto.ProtoID_SyncWorker, protocol.GetSyncWorkers(1, node.bc))
 	return node
 }
 

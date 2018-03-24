@@ -16,23 +16,3 @@
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package params
-
-import "github.com/zipper-project/zipper/coordinate"
-
-const (
-	// ProtocolName represents the name of the p2p protocol
-	ProtocolName = "L0-NETWORK"
-	// ProtocolVersion represents the version of the p2p protocol
-	ProtocolVersion = "0.0.1"
-)
-
-// ChainID  chain ID
-var (
-	ChainID       = coordinate.NewChainCoordinate([]byte{0})
-	PeerID        string
-	ConnNums      int
-	LocalIp       string
-	Nvp           bool
-	Mongodb       bool
-	MaxOccurs     int
-)
