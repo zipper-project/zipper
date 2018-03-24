@@ -79,6 +79,11 @@ func (tx *Transaction) Deserialize(data []byte) error {
 	return proto.Unmarshal(data, tx)
 }
 
+// CreateTime returns the create time of the transaction
+func (tx *Transaction) CreateTime() uint32 {
+	return tx.Header.CreateTime
+}
+
 // Transactions represents transaction slice type for basic sorting.
 type Transactions []*Transaction
 
