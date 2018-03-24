@@ -16,3 +16,9 @@
 // along with this program.  If not, see <https://opensource.org/licenses/isc>.
 
 package params
+
+var (
+	DataDir          = "."
+	LogDirName       = "logs"
+	ChainDataDirName = "chaindata"
+)

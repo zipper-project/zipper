@@ -20,7 +20,6 @@ func NewDefaultRPCOption() *RPCOption {
 	return option
 }
 
-
 func RPCConfig() *RPCOption {
 	option := NewDefaultRPCOption()
 	option.Enabled = viper.GetBool("jrpc.enabled")

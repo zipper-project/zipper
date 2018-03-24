@@ -21,12 +21,13 @@ import (
 	"path/filepath"
 
 	"github.com/zipper-project/zipper/common/db"
+	"github.com/zipper-project/zipper/params"
 )
 
 // DBConfig returns configurations for database
 func DBConfig() *db.Config {
 	dbConfig := db.DefaultConfig()
-	dbConfig.DbPath = filepath.Join(DataDir, ChainDataDirName)
+	dbConfig.DbPath = filepath.Join(params.DataDir, params.ChainDataDirName)
 	dbConfig.Columnfamilies = getStringSlice("db.columnfamilies", dbConfig.Columnfamilies)
 	dbConfig.KeepLogFileNumber = getInt("db.keepLogFileNumber", dbConfig.KeepLogFileNumber)
 	dbConfig.MaxLogFileSize = getInt("db.maxLogFileSize", dbConfig.MaxLogFileSize)

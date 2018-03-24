@@ -26,6 +26,7 @@ import (
 
 	"syscall"
 
+	"github.com/bocheninc/L0/vm"
 	"github.com/zipper-project/zipper/blockchain"
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/config"
@@ -51,7 +52,7 @@ func NewNode(cfgFile string) *Node {
 	log.New(cfg.LogFile)
 	log.SetLevel(cfg.LogLevel)
 	//	log.SetOutput(os.Stdout)
-	config.VMConfig(cfg.LogFile, cfg.LogLevel)
+	vm.VMConf = config.VMConfig(cfg.LogFile, cfg.LogLevel)
 	pm := protocol.NewProtoManager()
 	node := &Node{
 		bc:  blockchain.NewBlockchain(pm),

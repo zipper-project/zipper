@@ -23,13 +23,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/zipper-project/zipper/common/utils"
-)
-
-var (
-	DataDir          = "."
-	LogDirName       = "logs"
-	ChainDataDirName = "chaindata"
-	PluginDirname    = "plugin"
+	"github.com/zipper-project/zipper/params"
 )
 
 //ReadInConfig
@@ -38,10 +32,9 @@ func ReadInConfig(cfgFile string) (err error) {
 	if err := viper.ReadInConfig(); err != nil {
 		return err
 	}
-	DataDir = getString("blockchain.datadir", DataDir)
-	utils.OpenDir(filepath.Join(DataDir, ChainDataDirName))
-	utils.OpenDir(filepath.Join(DataDir, LogDirName))
-	utils.OpenDir(filepath.Join(DataDir, PluginDirname))
+	params.DataDir = getString("blockchain.datadir", params.DataDir)
+	utils.OpenDir(filepath.Join(params.DataDir, params.ChainDataDirName))
+	utils.OpenDir(filepath.Join(params.DataDir, params.LogDirName))
 	return nil
 }
 

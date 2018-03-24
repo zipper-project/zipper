@@ -19,7 +19,7 @@ package config
 
 import "path/filepath"
 
-type Option struct {
+type NodeOption struct {
 	// log
 	LogLevel string
 	LogFile  string
@@ -29,15 +29,15 @@ type Option struct {
 	ProfPort string
 }
 
-func NewDefaultOption() *Option {
-	return &Option{
+func NewDefaultNodeOption() *Option {
+	return &NodeOption{
 		LogLevel: "debug",
 		LogFile:  "zipper.log",
 	}
 }
 
 func NodeOption() *Option {
-	option := NewDefaultOption()
+	option := NewDefaultNodeOption()
 	option.ProfPort = getString("blockchain.profPort", option.ProfPort)
 	option.CPUFile = getString("blockchain.cpuprofile", option.CPUFile)
 	option.LogLevel = getString("log.level", option.LogLevel)

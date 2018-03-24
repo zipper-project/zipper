@@ -39,6 +39,5 @@ func VMConfig(logFile, logLevel string) *vm.Config {
 	config.LuaVMExeFilePath = getString("vm.luaVMExeFilePath", config.LuaVMExeFilePath)
 	config.JSVMExeFilePath = getString("vm.jsVMExeFilePath", config.JSVMExeFilePath)
 	config.BsWorkerCnt = getInt("vm.BsWorkerCnt", config.BsWorkerCnt)
-	vm.VMConf = config
 	return config
 }
