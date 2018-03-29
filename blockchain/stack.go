@@ -25,11 +25,12 @@ import (
 //VerifyTxs verify
 func (bc *Blockchain) VerifyTxs(txs proto.Transactions) (proto.Transactions, proto.Transactions) {
 	if bc.txPool == nil {
-		return false
+		return nil, nil
 	}
 	var rtxs, etxs proto.Transactions
 	for _, tx := range txs {
-		if !bc.txPool.IsTransactionInPool(tx.Hash()) {
+		hash := tx.Hash()
+		if !bc.txPool.IsTransactionInPool(&hash) {
 			if _, err := bc.txPool.ProcessTransaction(tx, true); err != nil {
 				etxs = append(etxs, tx)
 				continue

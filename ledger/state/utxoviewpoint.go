@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/zipper-project/zipper/common/crypto"
-	"github.com/zipper-project/zipper/proto"
+	"github.com/zipper-project/zipper/common/utils"
+	pb "github.com/zipper-project/zipper/proto"
 )
 
 // utxoOutput houses details about an individual unspent transaction output such
@@ -164,8 +165,8 @@ type UtxoViewpoint struct {
 // current state of the view.  It will return nil if the passed transaction
 // hash does not exist in the view or is otherwise not available such as when
 // it has been disconnected during a reorg.
-func (view *UtxoViewpoint) LookupEntry(txHash *crypto.Hash) *UtxoEntry {
-	entry, ok := view.entries[*txHash]
+func (view *UtxoViewpoint) LookupEntry(txHash crypto.Hash) *UtxoEntry {
+	entry, ok := view.entries[txHash]
 	if !ok {
 		return nil
 	}
@@ -202,14 +203,14 @@ func NewUtxoViewpoint() *UtxoViewpoint {
 // unspendable to the view.  When the view already has entries for any of the
 // outputs, they are simply marked unspent.  All fields will be updated for
 // existing entries since it's possible it has changed during a reorg.
-func (view *UtxoViewpoint) AddTxOuts(tx *proto.Transaction, blockHeight uint32) {
+func (view *UtxoViewpoint) AddTxOuts(tx *pb.Transaction, blockHeight uint32) {
 	// When there are not already any utxos associated with the transaction,
 	// add a new entry for it to the view.
 	txHash := tx.Hash()
-	entry := view.LookupEntry(&txHash)
+	entry := view.LookupEntry(txHash)
 	if entry == nil {
 		entry = newUtxoEntry(tx.Header.Version, blockHeight)
-		view.entries[txHash] = entry
+		view.entries[tx.Hash()] = entry
 	} else {
 		entry.blockHeight = blockHeight
 	}
@@ -248,7 +249,7 @@ func (view *UtxoViewpoint) AddTxOuts(tx *proto.Transaction, blockHeight uint32) 
 // spent.  In addition, when the 'stxos' argument is not nil, it will be updated
 // to append an entry for each spent txout.  An error will be returned if the
 // view does not contain the required utxos.
-func (view *UtxoViewpoint) connectTransaction(tx *proto.Transaction, blockHeight uint32) error {
+func (view *UtxoViewpoint) connectTransaction(tx *pb.Transaction, blockHeight uint32) error {
 	// Spend the referenced utxos by marking them spent in the view and,
 	// if a slice was provided for the spent txout details, append an entry
 	// to it.
@@ -267,5 +268,56 @@ func (view *UtxoViewpoint) connectTransaction(tx *proto.Transaction, blockHeight
 
 	// Add the transaction's outputs as available utxos.
 	view.AddTxOuts(tx, blockHeight)
+	return nil
+}
+
+func (view *UtxoViewpoint) fetchInputBlockUtxo(fn func(txSet map[crypto.Hash]struct{}) (map[crypto.Hash][]byte, error), block *pb.Block) {
+	txSet := make(map[crypto.Hash]int, 0)
+	txNeedSet := make(map[crypto.Hash]struct{}, 0)
+
+	for txIdx, tx := range block.Transactions {
+		txSet[tx.Hash()] = txIdx
+	}
+
+	for txIdx, tx := range block.Transactions {
+		for _, txIn := range tx.GetInputs() {
+			preTxHash := crypto.NewHash(txIn.PreviousOutPoint.TxHash)
+			if idx, ok := txSet[preTxHash]; ok && txIdx >= idx {
+				prevTx := block.Transactions[idx]
+				view.AddTxOuts(prevTx, block.GetHeader().GetHeight())
+				continue
+			}
+
+			if _, ok := view.entries[preTxHash]; !ok {
+				txNeedSet[preTxHash] = struct{}{}
+			}
+		}
+	}
+	view.fetchUtxosBySet(fn, txNeedSet)
+}
+
+func (view *UtxoViewpoint) fetchUtxosBySet(fn func(txSet map[crypto.Hash]struct{}) (map[crypto.Hash][]byte, error), txSet map[crypto.Hash]struct{}) error {
+	for txHash := range txSet {
+		_, ok := view.entries[txHash]
+		if !ok {
+			txSet[txHash] = struct{}{}
+		}
+	}
+
+	entriesSet, err := fn(txSet)
+	if err != nil {
+		return err
+	}
+
+	for txHash, entryData := range entriesSet {
+		if entryData == nil {
+			view.entries[txHash] = nil
+			continue
+		}
+
+		entry := &UtxoEntry{}
+		utils.Deserialize(entryData, entry)
+		view.entries[txHash] = entry
+	}
 	return nil
 }

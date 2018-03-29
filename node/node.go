@@ -26,19 +26,19 @@ import (
 
 	"syscall"
 
-	"github.com/bocheninc/L0/vm"
 	"github.com/zipper-project/zipper/blockchain"
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/config"
 	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/protocol"
 	"github.com/zipper-project/zipper/rpc"
+	"github.com/zipper-project/zipper/vm"
 )
 
 // Node represents the blockchain zipper
 type Node struct {
 	bc  *blockchain.Blockchain
-	cfg *config.Option
+	cfg *config.NodeOption
 }
 
 // NewNode returns node daemon instance
@@ -48,10 +48,11 @@ func NewNode(cfgFile string) *Node {
 		return nil
 	}
 
-	cfg := config.NodeOption()
+	cfg := config.NewNodeOption()
 	log.New(cfg.LogFile)
 	log.SetLevel(cfg.LogLevel)
 	//	log.SetOutput(os.Stdout)
+
 	vm.VMConf = config.VMConfig(cfg.LogFile, cfg.LogLevel)
 	pm := protocol.NewProtoManager()
 	node := &Node{

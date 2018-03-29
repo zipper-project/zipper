@@ -354,46 +354,46 @@ func getBalancesFunc(workerProc *vm.WorkerProc) interface{} {
 
 func txInfoFunc(workerProc *vm.WorkerProc) interface{} {
 	return func(fc otto.FunctionCall) otto.Value {
-		var addr, sender, recipient string
-		var amount, fee int64
-		var err error
-		if len(fc.ArgumentList) == 1 {
-			addr, err = fc.Argument(0).ToString()
-		} else {
-			addr = workerProc.ContractData.ContractAddr
-		}
+		// var addr, sender, recipient string
+		// var amount, fee int64
+		// var err error
+		// if len(fc.ArgumentList) == 1 {
+		// 	addr, err = fc.Argument(0).ToString()
+		// } else {
+		// 	addr = workerProc.ContractData.ContractAddr
+		// }
 
-		sender = workerProc.ContractData.Transaction.Sender().String()
-		recipient = workerProc.ContractData.Transaction.Recipient().String()
+		// sender = workerProc.ContractData.Transaction.Sender().String()
+		// recipient = workerProc.ContractData.Transaction.Recipient().String()
 
-		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
-		amountValue, err := fc.Otto.ToValue(amount)
-		if err != nil {
-			log.Error("accountFunc -> call amount ToLValue error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
-		}
+		// amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
+		// amountValue, err := fc.Otto.ToValue(amount)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call amount ToLValue error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
+		// }
 
-		fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
-		feeValue, err := fc.Otto.ToValue(fee)
-		if err != nil {
-			log.Error("accountFunc -> call amount ToLValue error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
-		}
+		// fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
+		// feeValue, err := fc.Otto.ToValue(fee)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call amount ToLValue error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
+		// }
 
-		assetID := workerProc.ContractData.Transaction.GetHeader().GetFee()
-		assetIDValue, err := fc.Otto.ToValue(assetID)
-		if err != nil {
-			log.Error("accountFunc -> call amount ToLValue error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
-		}
+		// assetID := workerProc.ContractData.Transaction.GetHeader().GetFee()
+		// assetIDValue, err := fc.Otto.ToValue(assetID)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call amount ToLValue error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
+		// }
 
 		mp := make(map[string]interface{}, 3)
-		mp["Address"] = addr
-		mp["Sender"] = sender
-		mp["Recipient"] = recipient
-		mp["Amount"] = amountValue
-		mp["Fee"] = feeValue
-		mp["AssetID"] = assetIDValue
+		// mp["Address"] = addr
+		// mp["Sender"] = sender
+		// mp["Recipient"] = recipient
+		// mp["Amount"] = amountValue
+		// mp["Fee"] = feeValue
+		// mp["AssetID"] = assetIDValue
 
 		val, err := fc.Otto.ToValue(mp)
 		if err != nil {
@@ -406,43 +406,43 @@ func txInfoFunc(workerProc *vm.WorkerProc) interface{} {
 
 func accountFunc(workerProc *vm.WorkerProc) interface{} {
 	return func(fc otto.FunctionCall) otto.Value {
-		var addr, sender, recipient string
-		var amount int64
-		var err error
-		if len(fc.ArgumentList) == 1 {
-			addr, err = fc.Argument(0).ToString()
-		} else {
-			addr = workerProc.ContractData.ContractAddr
-		}
+		// var addr, sender, recipient string
+		// var amount int64
+		// var err error
+		// if len(fc.ArgumentList) == 1 {
+		// 	addr, err = fc.Argument(0).ToString()
+		// } else {
+		// 	addr = workerProc.ContractData.ContractAddr
+		// }
 
-		balances, err := workerProc.CCallGetBalances(addr)
-		if err != nil {
-			log.Error("accountFunc -> call CCallGetBalances error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call CCallGetBalances error:"+err.Error())
-		}
+		// balances, err := workerProc.CCallGetBalances(addr)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call CCallGetBalances error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call CCallGetBalances error:"+err.Error())
+		// }
 
-		balancesValue, err := objToLValue(balances, fc.Otto)
-		if err != nil {
-			log.Error("accountFunc -> call objToLValue error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call objToLValue error:"+err.Error())
-		}
+		// balancesValue, err := objToLValue(balances, fc.Otto)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call objToLValue error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call objToLValue error:"+err.Error())
+		// }
 
-		sender = workerProc.ContractData.Transaction.Sender().String()
-		recipient = workerProc.ContractData.Transaction.Recipient().String()
+		// sender = workerProc.ContractData.Transaction.Sender().String()
+		// recipient = workerProc.ContractData.Transaction.Recipient().String()
 
-		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
-		amountValue, err := fc.Otto.ToValue(amount)
-		if err != nil {
-			log.Error("accountFunc -> call amount ToLValue error", err)
-			return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
-		}
+		// amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
+		// amountValue, err := fc.Otto.ToValue(amount)
+		// if err != nil {
+		// 	log.Error("accountFunc -> call amount ToLValue error", err)
+		// 	return fc.Otto.MakeCustomError("accountFunc", "call call amount ToLValue error:"+err.Error())
+		// }
 
 		mp := make(map[string]interface{}, 3)
-		mp["Address"] = addr
-		mp["Balances"] = balancesValue
-		mp["Sender"] = sender
-		mp["Recipient"] = recipient
-		mp["Amount"] = amountValue
+		// mp["Address"] = addr
+		// mp["Balances"] = balancesValue
+		// mp["Sender"] = sender
+		// mp["Recipient"] = recipient
+		// mp["Amount"] = amountValue
 
 		val, err := fc.Otto.ToValue(mp)
 		if err != nil {

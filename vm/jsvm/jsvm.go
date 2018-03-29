@@ -26,7 +26,6 @@ import (
 
 	"github.com/robertkrimen/otto"
 	"github.com/zipper-project/zipper/common/log"
-	"github.com/zipper-project/zipper/params"
 	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/vm"
 )
@@ -235,7 +234,7 @@ func (worker *JsWorker) GetContractCode() (string, error) {
 	cc := new(vm.ContractCode)
 	var code []byte
 	if len(worker.workerProc.ContractData.ContractAddr) == 0 {
-		code, err = worker.workerProc.SCHandler.GetGlobalState(params.GlobalContractKey)
+		//code, err = worker.workerProc.SCHandler.GetGlobalState(params.GlobalContractKey)
 	} else {
 		code, err = worker.workerProc.SCHandler.GetState(vm.ContractCodeKey)
 	}
@@ -263,7 +262,7 @@ func (worker *JsWorker) StoreContractCode() error {
 	}
 
 	if len(worker.workerProc.ContractData.ContractAddr) == 0 {
-		err = worker.workerProc.CCallPutState(params.GlobalContractKey, code.Bytes())
+		//err = worker.workerProc.CCallPutState(params.GlobalContractKey, code.Bytes())
 	} else {
 		err = worker.workerProc.CCallPutState(vm.ContractCodeKey, code.Bytes()) // add js contract code into state
 	}

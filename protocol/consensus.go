@@ -20,10 +20,11 @@ package protocol
 import (
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/common/mpool"
+	"github.com/zipper-project/zipper/consensus"
 )
 
 type ConsensusWorker struct {
-	consenter Consenter
+	consenter consensus.Consenter
 }
 
 func (worker *ConsensusWorker) VmJob(data interface{}) (interface{}, error) {
@@ -39,13 +40,13 @@ func (worker *ConsensusWorker) VmReady() bool {
 	return true
 }
 
-func NewConsensusWorker(consenter Consenter) *ConsensusWorker {
+func NewConsensusWorker(consenter consensus.Consenter) *ConsensusWorker {
 	return &ConsensusWorker{
 		consenter: consenter,
 	}
 }
 
-func GetConsensusWorkers(workerNums int, consenter Consenter) []mpool.VmWorker {
+func GetConsensusWorkers(workerNums int, consenter consensus.Consenter) []mpool.VmWorker {
 	cssWorkers := make([]mpool.VmWorker, 0)
 	for i := 0; i < workerNums; i++ {
 		cssWorkers = append(cssWorkers, NewConsensusWorker(consenter))

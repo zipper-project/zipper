@@ -43,6 +43,7 @@ func NewBLKRWSet(db *db.BlockchainDB) *BLKRWSet {
 		balanceCF:    "balance",
 		assetCF:      "asset",
 		dbHandler:    db,
+		view:         &UtxoViewpoint{},
 		exit:         make(chan struct{}, 1),
 	}
 }
@@ -67,6 +68,8 @@ type BLKRWSet struct {
 	txs         pb.Transactions
 	transferTxs pb.Transactions
 	errTxs      pb.Transactions
+
+	view *UtxoViewpoint
 
 	BlockIndex uint32
 	TxIndex    uint32
@@ -390,7 +393,7 @@ func (blk *BLKRWSet) DelAssetState(assetID uint32) {
 }
 
 // ApplyChanges merges delta
-func (blk *BLKRWSet) ApplyChanges() ([]*db.WriteBatch, pb.Transactions, pb.Transactions, error) {
+func (blk *BLKRWSet) ApplyChanges(fn func(utxos map[crypto.Hash][]byte) []*db.WriteBatch) ([]*db.WriteBatch, pb.Transactions, pb.Transactions, error) {
 	blk.wait()
 	log.Debugf("BLKRWSet ApplyChanges blockHeight:%d, txNum:%d", blk.BlockIndex, blk.TxIndex)
 	blk.chainCodeRW.RLock()
@@ -428,6 +431,14 @@ func (blk *BLKRWSet) ApplyChanges() ([]*db.WriteBatch, pb.Transactions, pb.Trans
 	errTxs := blk.errTxs
 	txs := blk.txs
 	txs = append(txs, blk.transferTxs...)
+
+	//storage utxos
+	utxos := make(map[crypto.Hash][]byte)
+	for hash, entry := range blk.view.entries {
+		utxos[hash] = utils.Serialize(entry)
+	}
+	writeBatchs = append(writeBatchs, fn(utxos)...)
+
 	return writeBatchs, txs, errTxs, nil
 }
 
@@ -540,10 +551,10 @@ func (blk *BLKRWSet) wait() {
 	}
 }
 
-func (blk *BLKRWSet) SetBlock(blkIndex, txNum uint32) {
-	log.Debugf("BLKRWSet SetBlock blockHeight:%d, txNum:%d", blkIndex, txNum)
-	blk.BlockIndex = blkIndex
-	blk.TxIndex = txNum
+func (blk *BLKRWSet) SetBlock(block *pb.Block, fn func(txSet map[crypto.Hash]struct{}) (map[crypto.Hash][]byte, error)) {
+	log.Debugf("BLKRWSet SetBlock blockHeight:%d, txNum:%d", block.GetHeader().GetHeight(), uint32(len(block.Transactions)))
+	blk.BlockIndex = block.GetHeader().GetHeight()
+	blk.TxIndex = uint32(len(block.Transactions))
 	blk.curTxIndex = 0
 	blk.exit = make(chan struct{}, 1)
 	blk.assetSet = NewKVRWSet()
@@ -552,6 +563,7 @@ func (blk *BLKRWSet) SetBlock(blkIndex, txNum uint32) {
 	blk.txs = nil
 	blk.errTxs = nil
 	blk.transferTxs = nil
+	blk.view.fetchInputBlockUtxo(fn, block)
 }
 
 func (blk *BLKRWSet) RootHash() crypto.Hash {

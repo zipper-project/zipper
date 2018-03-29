@@ -23,24 +23,29 @@ type NodeOption struct {
 	// log
 	LogLevel string
 	LogFile  string
+	LogName  string
 
 	// profile
 	CPUFile  string
 	ProfPort string
+
+	DataDir string
 }
 
-func NewDefaultNodeOption() *Option {
+func NewDefaultNodeOption() *NodeOption {
 	return &NodeOption{
 		LogLevel: "debug",
 		LogFile:  "zipper.log",
 	}
 }
 
-func NodeOption() *Option {
+func NewNodeOption() *NodeOption {
 	option := NewDefaultNodeOption()
 	option.ProfPort = getString("blockchain.profPort", option.ProfPort)
 	option.CPUFile = getString("blockchain.cpuprofile", option.CPUFile)
 	option.LogLevel = getString("log.level", option.LogLevel)
-	option.LogFile = filepath.Join(DataDir, LogDirName, option.LogFile)
+	option.DataDir = getString("log.datadir", option.DataDir)
+	option.LogName = getString("log.logdirname", option.LogName)
+	option.LogFile = filepath.Join(option.DataDir, option.LogName, option.LogFile)
 	return option
 }

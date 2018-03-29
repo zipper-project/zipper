@@ -19,7 +19,6 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/zipper-project/zipper/params"
 )
 
 // versionCmd represents the version command
@@ -28,7 +27,7 @@ var versionCmd = &cobra.Command{
 	Short: "Show current version",
 	Long:  `Show current version`,
 	Run: func(cmd *cobra.Command, args []string) {
-		params.Version()
+		//params.Version()
 		// TODO
 	},
 }

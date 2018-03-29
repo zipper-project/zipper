@@ -45,9 +45,9 @@ type ContractData struct {
 
 func NewContractData(tx *proto.Transaction) *ContractData {
 	cd := new(ContractData)
-	if tx.GetType() == proto.TransactionType_ContractInvoke ||
-		tx.GetType() == proto.TransactionType_JSContractInit ||
-		tx.GetType() == proto.TransactionType_LuaContractInit {
+	if tx.GetHeader().GetType() == proto.TransactionType_ContractInvoke ||
+		tx.GetHeader().GetType() == proto.TransactionType_JSContractInit ||
+		tx.GetHeader().GetType() == proto.TransactionType_LuaContractInit {
 		cd.ContractCode = string(tx.GetContractSpec().Code)
 		cd.ContractAddr = hex.EncodeToString(tx.GetContractSpec().Addr)
 		cd.ContractParams = tx.GetContractSpec().Params
@@ -298,23 +298,6 @@ func (p *WorkerProc) CCallCommit() error {
 func (p *WorkerProc) ccall(funcName string, params ...interface{}) (interface{}, error) {
 	//log.Debugf("request parent proc funcName:%s, params(%d): %+v \n", funcName, len(params), params)
 	switch funcName {
-	case "GetGlobalState":
-		if !p.checkParamsCnt(1, params...) {
-			return nil, ErrNoValidParamsCnt
-		}
-		return p.SCHandler.GetGlobalState(params[0].(string))
-	case "SetGlobalState":
-		if !p.checkParamsCnt(2, params...) {
-			return nil, ErrNoValidParamsCnt
-		}
-		key := params[0].(string)
-		value := params[1].([]byte)
-		return nil, p.SCHandler.PutGlobalState(key, value)
-	case "DelGlobalState":
-		if !p.checkParamsCnt(1, params...) {
-			return nil, ErrNoValidParamsCnt
-		}
-		return nil, p.SCHandler.DelGlobalState(params[0].(string))
 	case "GetState":
 		if !p.checkParamsCnt(1, params...) {
 			return nil, ErrNoValidParamsCnt

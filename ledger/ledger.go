@@ -30,7 +30,7 @@ import (
 	"github.com/zipper-project/zipper/ledger/balance"
 	"github.com/zipper-project/zipper/ledger/blockstorage"
 	"github.com/zipper-project/zipper/ledger/state"
-	"github.com/zipper-project/zipper/params"
+	"github.com/zipper-project/zipper/ledger/utxo"
 	pb "github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/vm/bsvm"
@@ -45,6 +45,7 @@ type Ledger struct {
 	dbHandler *db.BlockchainDB
 	block     *blockstorage.Blockchain
 	state     *state.BLKRWSet
+	utxo      *utxo.Utxo
 	mdbChan   chan []*db.WriteBatch
 	vmEnv     map[string]*mpool.VirtualMachine
 }
@@ -56,6 +57,7 @@ func NewLedger(kvdb *db.BlockchainDB) *Ledger {
 			dbHandler: kvdb,
 			block:     blockstorage.NewBlockchain(kvdb),
 			state:     state.NewBLKRWSet(kvdb),
+			utxo:      utxo.NewUtxo(kvdb),
 		}
 		ledgerInstance.init()
 		_, err := ledgerInstance.Height()
@@ -100,7 +102,7 @@ func (ledger *Ledger) VerifyChain() {
 			log.Panicf("VerifyChain -- GetBlockByNumber %s", err)
 		}
 		// verify previous block
-		if previousBlockHeader.Hash().String() != currentBlockHeader.PreviousHash {
+		if !bytes.Equal(previousBlockHeader.Hash().Bytes(), currentBlockHeader.PreviousHash) {
 			log.Panicf("VerifyChain -- block [%d] mismatch, veifychain breaks", i)
 		}
 		currentBlockHeader = previousBlockHeader
@@ -120,8 +122,7 @@ func (ledger *Ledger) GetGenesisBlock() *pb.BlockHeader {
 func (ledger *Ledger) AppendBlock(block *pb.Block, flag bool) error {
 
 	//go ledger.Validator.RemoveTxsInVerification(block.Transactions)
-
-	ledger.state.SetBlock(block.GetHeader().GetHeight(), uint32(len(block.Transactions)))
+	ledger.state.SetBlock(block, ledger.utxo.GetUtxoEntryBySet)
 
 	wokerData := func(tx *pb.Transaction, txIdx int) *vm.WorkerProc {
 		return &vm.WorkerProc{
@@ -140,7 +141,7 @@ func (ledger *Ledger) AppendBlock(block *pb.Block, flag bool) error {
 		})
 	}
 
-	writeBatches, oktxs, errtxs, err := ledger.state.ApplyChanges()
+	writeBatches, oktxs, errtxs, err := ledger.state.ApplyChanges(ledger.utxo.PutUtxo)
 	if err != nil || len(errtxs) != 0 {
 		//TODO
 		log.Errorf("AppendBlock Err: %+v, errtxs: %+v", err, len(errtxs))
@@ -151,11 +152,19 @@ func (ledger *Ledger) AppendBlock(block *pb.Block, flag bool) error {
 	log.Warnf("appendBlock cnt: %+v, oktxs: %+v, errtxs: %+v, blkht: %+v, execTime: %s ...........", len(block.Transactions), len(oktxs), len(errtxs), blkHt, execTime)
 
 	block.Transactions = oktxs
-	block.Header.TxsMerkleHash = merkleRootHash(block.Transactions).String()
-	block.Header.StateHash = ledger.state.RootHash().String()
+	block.Header.TxsMerkleHash = merkleRootHash(block.Transactions).Bytes()
+	block.Header.StateHash = ledger.state.RootHash().Bytes()
 	blkWriteBatches := ledger.block.AppendBlock(block)
 	writeBatches = append(writeBatches, blkWriteBatches...)
 	return ledger.dbHandler.AtomicWrite(writeBatches)
+}
+
+func (ledger *Ledger) GetUtxoEntryBySet(txSet map[crypto.Hash]struct{}) (map[crypto.Hash][]byte, error) {
+	return ledger.utxo.GetUtxoEntryBySet(txSet)
+}
+
+func (ledger *Ledger) GetUtxoEntryByHash(hash crypto.Hash) ([]byte, error) {
+	return ledger.utxo.GetUtxoEntryByHash(hash)
 }
 
 // GetBlockByNumber gets the block by the given number
@@ -270,33 +279,33 @@ func (ledger *Ledger) init() error {
 	writeBatchs := ledger.block.AppendBlock(genesisBlock)
 
 	// admin address
-	buf, err := state.ConcrateStateJson(state.DefaultAdminAddr)
-	if err != nil {
-		return err
-	}
+	// buf, err := state.ConcrateStateJson(state.DefaultAdminAddr)
+	// if err != nil {
+	// 	return err
+	// }
 
-	writeBatchs = append(writeBatchs,
-		db.NewWriteBatch(ledger.state.GetChainCodeCF(),
-			db.OperationPut,
-			[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.AdminKey)),
-			buf.Bytes(), ledger.state.GetChainCodeCF()))
+	// writeBatchs = append(writeBatchs,
+	// 	db.NewWriteBatch(ledger.state.GetChainCodeCF(),
+	// 		db.OperationPut,
+	// 		[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.AdminKey)),
+	// 		buf.Bytes(), ledger.state.GetChainCodeCF()))
 
-	// global contract
-	buf, err = state.ConcrateStateJson(&vm.ContractCode{
-		state.DefaultGlobalContractCode,
-		state.DefaultGlobalContractType,
-	})
-	if err != nil {
-		return err
-	}
+	// // global contract
+	// buf, err = state.ConcrateStateJson(&vm.ContractCode{
+	// 	state.DefaultGlobalContractCode,
+	// 	state.DefaultGlobalContractType,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
-	writeBatchs = append(writeBatchs,
-		db.NewWriteBatch(ledger.state.GetChainCodeCF(),
-			db.OperationPut,
-			[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.GlobalContractKey)),
-			buf.Bytes(), ledger.state.GetChainCodeCF()))
+	// writeBatchs = append(writeBatchs,
+	// 	db.NewWriteBatch(ledger.state.GetChainCodeCF(),
+	// 		db.OperationPut,
+	// 		[]byte(state.ConstructCompositeKey(params.GlobalStateKey, params.GlobalContractKey)),
+	// 		buf.Bytes(), ledger.state.GetChainCodeCF()))
 
-	err = ledger.dbHandler.AtomicWrite(writeBatchs)
+	err := ledger.dbHandler.AtomicWrite(writeBatchs)
 	if err != nil {
 		return err
 	}
@@ -304,12 +313,13 @@ func (ledger *Ledger) init() error {
 }
 
 func (ledger *Ledger) checkCoordinate(tx *pb.Transaction) bool {
-	fromChainID := tx.GetHeader().GetFromChain()
-	toChainID := tx.GetHeader().GetToChain()
-	if bytes.Equal(fromChainID, toChainID) {
-		return true
-	}
-	return false
+	// fromChainID := tx.GetHeader().ge
+	// toChainID := tx.GetHeader().GetToChain()
+	// if bytes.Equal(fromChainID, toChainID) {
+	// 	return true
+	// }
+	// return false
+	return true
 }
 
 func merkleRootHash(txs []*pb.Transaction) crypto.Hash {

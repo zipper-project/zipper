@@ -98,6 +98,10 @@ type TxPool struct {
 	nextExpireScan time.Time
 }
 
+func NewTxPool() *TxPool {
+	return &TxPool{}
+}
+
 // removeOrphan removes the passed orphan transaction from the orphan pool and
 // previous orphan index.
 func (mp *TxPool) removeOrphan(tx *proto.Transaction, removeRedeemers bool) {
@@ -568,7 +572,7 @@ func (mp *TxPool) maybeAcceptTransaction(tx *proto.Transaction, rejectDupOrphans
 
 	// Don't allow the transaction if it exists in the main chain and is not
 	// not already fully spent.
-	txEntry := utxoView.LookupEntry(&txHash)
+	txEntry := utxoView.LookupEntry(txHash)
 	if txEntry != nil && !txEntry.IsFullySpent() {
 		return nil, nil, fmt.Errorf("transaction %v already exists in db", txHash)
 	}
@@ -687,7 +691,7 @@ func (mp *TxPool) ProcessTransaction(tx *proto.Transaction, allowOrphan bool) ([
 // The descriptors are to be treated as read only.
 func (mp *TxPool) TxDescs() []*TxDesc {
 	mp.RLock()
-	defer mp.mtx.RUnlock()
+	defer mp.RUnlock()
 	descs := make([]*TxDesc, len(mp.pool))
 	i := 0
 	for _, desc := range mp.pool {
@@ -702,7 +706,7 @@ func (mp *TxPool) TxDescs() []*TxDesc {
 // The descriptors are to be treated as read only.
 func (mp *TxPool) Txs() []*proto.Transaction {
 	mp.RLock()
-	defer mp.mtx.RUnlock()
+	defer mp.RUnlock()
 	txs := make([]*proto.Transaction, len(mp.pool))
 	i := 0
 	for _, desc := range mp.pool {

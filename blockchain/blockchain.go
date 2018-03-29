@@ -18,8 +18,8 @@
 package blockchain
 
 import (
+	"bytes"
 	"container/list"
-	"fmt"
 	"sync"
 	"time"
 
@@ -84,13 +84,13 @@ func (bc *Blockchain) load() {
 	bc.Ledger.VerifyChain()
 	delay := time.Since(t)
 
-	height, err := bc.ledger.Height()
+	height, err := bc.Height()
 
 	if err != nil {
 		log.Error("GetBlockHeight error", err)
 		return
 	}
-	bc.currentBlockHeader, err = bc.ledger.GetBlockByNumber(height)
+	bc.currentBlockHeader, err = bc.GetBlockByNumber(height)
 
 	if bc.currentBlockHeader == nil || err != nil {
 		log.Errorf("GetBlockByNumber error %v ", err)
@@ -128,23 +128,23 @@ func NewBlockchain(pm peer.IProtocolManager) *Blockchain {
 func (bc *Blockchain) Start() {
 	go bc.server.Start()
 	blockChainLoop := func() {
-		requestBatchTimer := time.NewTimer(consenter.BatchTimeout())
+		requestBatchTimer := time.NewTimer(bc.consenter.BatchTimeout())
 		for {
 			select {
 			case <-bc.quitCh:
 				return
 			case cnt := <-bc.requestBatchSignal:
-				if cnt >= v.consenter.BatchSize() {
+				if cnt >= bc.consenter.BatchSize() {
 					requestBatch := bc.txPool.Txs()
 					log.Debugf("request Batch: %d ", len(requestBatch))
-					v.consenter.ProcessBatch(requestBatch, bc.consensusFailed)
+					bc.consenter.ProcessBatch(requestBatch, bc.consensusFailed)
 				} else if cnt == 1 {
-					requestBatchTimer.Reset(consenter.BatchTimeout())
+					requestBatchTimer.Reset(bc.consenter.BatchTimeout())
 				}
 			case <-requestBatchTimer.C:
 				requestBatch := bc.txPool.Txs()
 				log.Debugf("request Batch Timeout: %d ", len(requestBatch))
-				v.consenter.ProcessBatch(requestBatch, bc.consensusFailed)
+				bc.consenter.ProcessBatch(requestBatch, bc.consensusFailed)
 			case broadcastConsensusData := <-bc.consenter.BroadcastConsensusChannel():
 				//TODO
 				header := &p2p.Header{}
@@ -207,10 +207,6 @@ func (bc *Blockchain) GetConsenter() consensus.Consenter {
 	return bc.consenter
 }
 
-func (bc *Blockchain) GetLedger() Ledger {
-	return bc.Ledger
-}
-
 // CurrentHeight returns current heigt of the current block
 func (bc *Blockchain) CurrentHeight() uint32 {
 	return bc.currentBlockHeader.Height
@@ -250,24 +246,24 @@ func (bc *Blockchain) ProcessTransaction(tx *proto.Transaction, needNotify bool)
 	// step 1: validate and mark transaction
 	// step 2: add transaction to txPool
 	// if atomic.LoadUint32(&bc.synced) == 0 {
-	log.Debugf("[Blockchain] new tx, tx_hash: %v, tx_sender: %v, tx_nonce: %v", tx.Hash().String(), tx.Sender().String(), tx.Nonce())
+	//log.Debugf("[Blockchain] new tx, tx_hash: %v, tx_sender: %v, tx_nonce: %v", tx.Hash().String(), tx.Sender().String(), tx.Nonce())
 	if bc.txPool == nil {
 		return true
 	}
 
-	err := bc.txPool.ProcessTransaction(tx, true)
-	log.Debugf("[Blockchain] new tx, tx_hash: %v, tx_sender: %v, tx_nonce: %v, end", tx.Hash().String(), tx.Sender().String(), tx.Nonce())
-	if err != nil {
-		log.Errorf(fmt.Sprintf("process transaction %v failed, %v", tx.Hash(), err))
-		return false
-	}
+	// err := bc.txPool.ProcessTransaction(tx, true)
+	// log.Debugf("[Blockchain] new tx, tx_hash: %v, tx_sender: %v, tx_nonce: %v, end", tx.Hash().String(), tx.Sender().String(), tx.Nonce())
+	// if err != nil {
+	// 	log.Errorf(fmt.Sprintf("process transaction %v failed, %v", tx.Hash(), err))
+	// 	return false
+	// }
 	bc.requestBatchSignal <- bc.txPool.Count()
 	return true
 }
 
 func (bc *Blockchain) processConsensusOutput(output *consensus.OutputTxs) {
 	blk := bc.GenerateBlock(output.Txs, output.Time)
-	if blk.Height() == output.Height {
+	if blk.GetHeader().GetHeight() == output.Height {
 		bc.Relay(blk)
 	}
 }
@@ -280,10 +276,13 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 		stateRootHash  crypto.Hash
 	)
 
-	blk := proto.NewBlock(bc.currentBlockHeader.Hash(), stateRootHash,
-		createTime, bc.currentBlockHeader.Height+1,
+	blk := proto.NewBlock(&proto.BlockHeader{bc.currentBlockHeader.Hash().Bytes(),
+		merkleRootHash.Bytes(),
+		stateRootHash.Bytes(),
+		createTime,
+		bc.currentBlockHeader.Height + 1,
 		uint32(100),
-		merkleRootHash,
+	},
 		txs,
 	)
 	return blk
@@ -291,17 +290,17 @@ func (bc *Blockchain) GenerateBlock(txs proto.Transactions, createTime uint32) *
 
 // ProcessBlock processes new block from the network,flag = true pack up block ,flag = false sync block
 func (bc *Blockchain) ProcessBlock(blk *proto.Block, flag bool) bool {
-	log.Debugf("block previoushash %s, currentblockhash %s,len %d", blk.PreviousHash(), bc.CurrentBlockHash(), len(blk.Transactions))
-	if blk.PreviousHash() == bc.CurrentBlockHash().String() {
-		bc.ledger.AppendBlock(blk, flag)
-		log.Infof("New Block  %s, height: %d Transaction Number: %d", blk.Hash(), blk.Height(), len(blk.Transactions))
+	log.Debugf("block previoushash %s, currentblockhash %s,len %d", blk.GetHeader().GetPreviousHash(), bc.CurrentBlockHash(), len(blk.Transactions))
+	if bytes.Equal(blk.GetHeader().GetPreviousHash(), bc.CurrentBlockHash().Bytes()) {
+		bc.AppendBlock(blk, flag)
+		log.Infof("New Block  %s, height: %d Transaction Number: %d", blk.Hash(), blk.GetHeader().GetHeight(), len(blk.Transactions))
 		bc.currentBlockHeader = blk.Header
 		return true
 	}
 	return false
 }
 
-func (bc *Blockchain) Relay(inv proto.IInventory) {
+func (bc *Blockchain) Relay(inv interface{}) {
 	var (
 		msg *p2p.Message
 	)
@@ -336,7 +335,7 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 			log.Debugf("ProcessTransaction, blk_hash: %+v", block.Hash())
 			invMsg := &proto.GetInvMsg{}
 			invMsg.Type = proto.InvType_block
-			invMsg.Hashs = []string{inv.Hash().String()}
+			invMsg.Hashs = []string{block.Hash().String()}
 
 			header := &p2p.Header{}
 			header.ProtoID = uint32(proto.ProtoID_SyncWorker)
@@ -348,6 +347,10 @@ func (bc *Blockchain) Relay(inv proto.IInventory) {
 	}
 }
 
+func (bc *Blockchain) GetNextBlockHash(hash crypto.Hash) (crypto.Hash, error) {
+	//TODO
+	return crypto.Hash{}, nil
+}
 func (bc *Blockchain) consensusFailed(flag int, txs proto.Transactions) {
 	if len(txs) == 0 {
 		return

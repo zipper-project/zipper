@@ -26,7 +26,6 @@ import (
 
 	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/ledger/state"
-	"github.com/zipper-project/zipper/params"
 	"github.com/zipper-project/zipper/proto"
 	"github.com/zipper-project/zipper/vm"
 	"github.com/zipper-project/zipper/vm/jsvm"
@@ -177,7 +176,7 @@ func (worker *BsWorker) GetInvokeType(wpwc *vm.WorkerProcWithCallback) (string, 
 	cc := new(vm.ContractCode)
 	var code []byte
 	if len(wpwc.WorkProc.ContractData.ContractAddr) == 0 {
-		code, err = wpwc.WorkProc.SCHandler.GetGlobalState(params.GlobalContractKey)
+		//code, err = wpwc.WorkProc.SCHandler.GetGlobalState(params.GlobalContractKey)
 	} else {
 		code, err = wpwc.WorkProc.SCHandler.GetState(vm.ContractCodeKey)
 	}

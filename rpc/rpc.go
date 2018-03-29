@@ -21,7 +21,6 @@ import (
 	"errors"
 
 	"github.com/zipper-project/zipper/blockchain"
-	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/proto"
 )
 
@@ -47,11 +46,7 @@ func (rt *RPCTransaction) Broadcast(txHex string, reply *string) error {
 		return err
 	}
 
-	_, err = tx.Verfiy()
-	if err != nil {
-		log.Errorf("Tx Verfiy err: %+v", err)
-		return errors.New("Invalid Tx, varify the signature of Tx failed")
-	}
+	//TODO verfiy transaction
 
 	rt.bc.Relay(tx)
 	return nil

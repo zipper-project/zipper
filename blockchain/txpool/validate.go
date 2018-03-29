@@ -101,7 +101,7 @@ func CheckTransactionInputs(tx *proto.Transaction, utxoView *state.UtxoViewpoint
 		// Ensure the referenced input transaction is available.
 		originTxHash := crypto.NewHash(txIn.PreviousOutPoint.TxHash)
 		originTxIndex := txIn.PreviousOutPoint.Index
-		utxoEntry := utxoView.LookupEntry(&originTxHash)
+		utxoEntry := utxoView.LookupEntry(originTxHash)
 		if utxoEntry == nil || utxoEntry.IsOutputSpent(originTxIndex) {
 			err := fmt.Errorf("output %v referenced from "+
 				"transaction %s:%d either does not exist or "+

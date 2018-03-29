@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/yuin/gopher-lua"
-	"github.com/zipper-project/zipper/common/log"
 	"github.com/zipper-project/zipper/vm"
 	luajson "github.com/zipper-project/zipper/vm/luavm/json"
 )
@@ -321,23 +320,23 @@ func getBalancesFunc(workerProc *vm.WorkerProc) lua.LGFunction {
 
 func txInfo(workerProc *vm.WorkerProc) lua.LGFunction {
 	return func(l *lua.LState) int {
-		var sender, recipient string
-		var amount, fee int64
+		// var sender, recipient string
+		// var amount, fee int64
 
-		sender = workerProc.ContractData.Transaction.Sender().String()
-		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
-		fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
-		recipient = workerProc.ContractData.Transaction.Recipient().String()
-		assetID := workerProc.ContractData.Transaction.GetHeader().GetAssetID()
-		hash := workerProc.ContractData.Transaction.Hash().String()
+		// sender = workerProc.ContractData.Transaction.Sender().String()
+		// amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
+		// fee = workerProc.ContractData.Transaction.GetHeader().GetFee()
+		// recipient = workerProc.ContractData.Transaction.Recipient().String()
+		// assetID := workerProc.ContractData.Transaction.GetHeader().GetAssetID()
+		// hash := workerProc.ContractData.Transaction.Hash().String()
 		tb := l.NewTable()
-		log.Debugf("worker_lua tx_hash: %+v, tx_sender: %+v, wp: %p, cpar: %#v, tx: %#v", workerProc.ContractData.Transaction.Hash(), sender, workerProc, workerProc.ContractData.ContractParams, workerProc.ContractData.Transaction)
-		tb.RawSetString("Sender", lua.LString(sender))
-		tb.RawSetString("Recipient", lua.LString(recipient))
-		tb.RawSetString("AssetID", lua.LNumber(assetID))
-		tb.RawSetString("Amount", lua.LNumber(amount))
-		tb.RawSetString("Fee", lua.LNumber(fee))
-		tb.RawSetString("Hash", lua.LString(hash))
+		// log.Debugf("worker_lua tx_hash: %+v, tx_sender: %+v, wp: %p, cpar: %#v, tx: %#v", workerProc.ContractData.Transaction.Hash(), sender, workerProc, workerProc.ContractData.ContractParams, workerProc.ContractData.Transaction)
+		// tb.RawSetString("Sender", lua.LString(sender))
+		// tb.RawSetString("Recipient", lua.LString(recipient))
+		// tb.RawSetString("AssetID", lua.LNumber(assetID))
+		// tb.RawSetString("Amount", lua.LNumber(amount))
+		// tb.RawSetString("Fee", lua.LNumber(fee))
+		// tb.RawSetString("Hash", lua.LString(hash))
 		l.Push(tb)
 		return 1
 	}
@@ -345,28 +344,28 @@ func txInfo(workerProc *vm.WorkerProc) lua.LGFunction {
 
 func accountFunc(workerProc *vm.WorkerProc) lua.LGFunction {
 	return func(l *lua.LState) int {
-		var addr, sender, recipient string
-		var amount int64
-		if l.GetTop() == 1 {
-			addr = l.CheckString(1)
-		} else {
-			addr = workerProc.ContractData.ContractAddr
-		}
+		// var addr, sender, recipient string
+		// var amount int64
+		// if l.GetTop() == 1 {
+		// 	addr = l.CheckString(1)
+		// } else {
+		// 	addr = workerProc.ContractData.ContractAddr
+		// }
 
-		balances, err := workerProc.CCallGetBalances(addr)
-		if err != nil {
-			l.RaiseError("get balances error addr:%s  err:%s", addr, err)
-			return 1
-		}
-		sender = workerProc.ContractData.Transaction.Sender().String()
-		amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
-		recipient = workerProc.ContractData.Transaction.Recipient().String()
+		// balances, err := workerProc.CCallGetBalances(addr)
+		// if err != nil {
+		// 	l.RaiseError("get balances error addr:%s  err:%s", addr, err)
+		// 	return 1
+		// }
+		// sender = workerProc.ContractData.Transaction.Sender().String()
+		// amount = workerProc.ContractData.Transaction.GetHeader().GetAmount()
+		// recipient = workerProc.ContractData.Transaction.Recipient().String()
 		tb := l.NewTable()
-		tb.RawSetString("Sender", lua.LString(sender))
-		tb.RawSetString("Address", lua.LString(addr))
-		tb.RawSetString("Recipient", lua.LString(recipient))
-		tb.RawSetString("Amount", lua.LNumber(amount))
-		tb.RawSetString("Balances", objToLValue(balances))
+		// tb.RawSetString("Sender", lua.LString(sender))
+		// tb.RawSetString("Address", lua.LString(addr))
+		// tb.RawSetString("Recipient", lua.LString(recipient))
+		// tb.RawSetString("Amount", lua.LNumber(amount))
+		// tb.RawSetString("Balances", objToLValue(balances))
 		l.Push(tb)
 		return 1
 	}

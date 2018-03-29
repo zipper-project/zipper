@@ -25,12 +25,6 @@ import (
 
 //blockchain should provide the implement to VM
 type ISmartConstract interface {
-	GetGlobalState(key string) ([]byte, error)
-
-	PutGlobalState(key string, value []byte) error
-
-	DelGlobalState(key string) error
-
 	GetState(key string) ([]byte, error)
 
 	PutState(key string, value []byte) error

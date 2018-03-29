@@ -75,7 +75,7 @@ func NewSyncWorker(ledger *ledger.Ledger, bc *blockchain.Blockchain) *SyncWorker
 func GetSyncWorkers(workerNums int, bc *blockchain.Blockchain) []mpool.VmWorker {
 	cssWorkers := make([]mpool.VmWorker, 0)
 	for i := 0; i < workerNums; i++ {
-		cssWorkers = append(cssWorkers, NewSyncWorker(bc.GetLedger(), bc))
+		cssWorkers = append(cssWorkers, NewSyncWorker(nil, bc))
 	}
 
 	return cssWorkers
@@ -159,7 +159,7 @@ func (worker *SyncWorker) OnGetInv(workerData *WorkerData) {
 	switch getInvMsg.Type {
 	case proto.InvType_block:
 		for _, h := range getInvMsg.Hashs {
-			if tx, _ := worker.bc.GetTransaction(crypto.NewHash([]byte(h))); tx != nil {
+			if tx, _ := worker.bc.GetTxByTxHash([]byte(h)); tx != nil {
 				hashes = append(hashes, h)
 			}
 		}
@@ -212,7 +212,7 @@ func (worker *SyncWorker) OnGetData(workerData *WorkerData) {
 			}
 		case proto.InvType_transaction:
 			for _, h := range inv.Hashs {
-				if tx, _ := worker.bc.GetTransaction(crypto.NewHash([]byte(h))); tx != nil {
+				if tx, _ := worker.bc.GetTxByTxHash([]byte(h)); tx != nil {
 					txMsg := &proto.OnTransactionMsg{
 						Transaction: tx,
 					}

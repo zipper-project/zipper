@@ -171,6 +171,9 @@ func (blockchain *Blockchain) AppendBlock(block *pb.Block) []*db.WriteBatch {
 	for _, tx := range block.Transactions {
 		txHashs = append(txHashs, tx.Hash())
 		writeBatchs = append(writeBatchs, db.NewWriteBatch(blockchain.transactionColumnFamily, db.OperationPut, tx.Hash().Bytes(), tx.Serialize(), blockchain.transactionColumnFamily)) // tx hash => tx detail
+
+		//storage utxo
+
 	}
 	writeBatchs = append(writeBatchs, db.NewWriteBatch(blockchain.indexColumnFamily, db.OperationPut, prependKeyPrefix(blockchain.txPrefix, blockHeightBytes), utils.Serialize(txHashs), string(blockchain.txPrefix))) // prefix + blockheight  => all tx hash
 
